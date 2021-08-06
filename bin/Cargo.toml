@@ -1,0 +1,40 @@
+[package]
+name = "zCloak-server"
+version = "0.1.0"
+authors = ["zCloak Network"]
+description = "zCloak verify server"
+repository = "https://github.com/zCloak-Network/zCloak-server.git"
+include = [
+    "Cargo.toml",
+    "**/*.rs",
+    "README.md",
+    "LICENSE"
+]
+keywords = ["substrate"]
+readme = 'README.md'
+edition = "2018"
+
+[[bin]]
+name = "zCloak-server"
+path = "src/main.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0"
+tokio = { version = "1", features = ["full"] }
+routerify = "2"
+hyper = "0.14"
+structopt = "0.3"
+log = "0.4"
+env_logger = "0.8"
+reqwest = { version = "0.11", features = ["json"] }
+lifeline = { git = "https://github.com/fewensa/lifeline-rs.git", branch = "threads-safely" }
+colored = "2"
+async-recursion = "0.3"
+dirs = "3"
+rpassword = "5.0"
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+verify-traits = { path = "../../traits"}
