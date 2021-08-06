@@ -1,9 +1,8 @@
 [workspace]
-
 members = [
     "primitives",
 
     "components/*",
-    "task/*",
+    "supports/*",
     "traits",
 ]
