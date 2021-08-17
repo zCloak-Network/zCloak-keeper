@@ -1,12 +1,11 @@
 use substrate_subxt::{
     events::Raw,
     Client, EventTypeRegistry, EventsDecoder, RawEvent,
-    Runtime,ClientBuilder,
+    Runtime,ClientBuilder, 
 };
 use crate::error::*;
 
 pub mod error;
-pub mod rpc;
 
 
 pub struct SubstrateEvents<T: Runtime> {
@@ -47,6 +46,8 @@ impl<T: Runtime> SubstrateEvents<T> {
         Ok(events)
     }
 
+    
+
 
 
 
@@ -74,11 +75,12 @@ impl<T: Runtime> SubstrateClient<T> {
         .skip_type_sizes_check()
         .build()
         .await?;
+
         let event = SubstrateEvents::<T>::new(client.clone());
 
         Ok(Self {
             subxt: client,
-            event,
+            event: event,
         })
     }
 

@@ -1,5 +1,5 @@
 [package]
-name = "verify-traits"
+name = "server-traits"
 version = "0.1.0"
 authors = ["zCloak Network"]
 description = "zCloak verify server"

@@ -1,5 +1,5 @@
 [package]
-name = "subxt-client"
+name = "components-subxt-client"
 version = "0.1.0"
 authors = ["zCloak Network"]
 description = "zCloak verify server"
@@ -36,3 +36,4 @@ secp256k1 = { version = "0.20", features = ["recovery"] }
 
 substrate-subxt = { git = "https://github.com/darwinia-network/substrate-subxt.git", tag = "darwinia-v0.15.2" }
 substrate-subxt-proc-macro = { git = "https://github.com/darwinia-network/substrate-subxt.git", tag = "darwinia-v0.15.2" }
+

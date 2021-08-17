@@ -7,9 +7,9 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use strum::AsStaticRef;
 
-use crate::error::{VerifyResult, StandardError};
+use crate::error::{ServerResult, StandardError};
 
-pub trait VerifyConfig {
+pub trait ServerConfig {
     fn marker() -> &'static str;
     fn template() -> Self;
 }
@@ -41,18 +41,18 @@ impl Config{
         DEFAULT_NAMESPACE
     }
 
-    pub fn store<S: AsRef<str>, B: VerifyConfig + Serialize>(
+    pub fn store<S: AsRef<str>, B: ServerConfig + Serialize>(
         name: S,
         config: B,
-    ) -> VerifyResult<()> {
+    ) -> ServerResult<()> {
         Self::store_with_namespace(name, config, DEFAULT_NAMESPACE)
     }
 
-    pub fn store_with_namespace<S: AsRef<str>, B: VerifyConfig + Serialize, N: AsRef<str>>(
+    pub fn store_with_namespace<S: AsRef<str>, B: ServerConfig + Serialize, N: AsRef<str>>(
         name: S,
         config: B,
         namespace: N,
-    ) -> VerifyResult<()> {
+    ) -> ServerResult<()> {
         let config_marker = B::marker();
         let key = format!(
             "{}:{}@{}",
@@ -69,6 +69,85 @@ impl Config{
         })?;
         let _mutex = INSTANCE.lock().unwrap().insert(key, json);
         Ok(())
+    }
+
+    pub fn restore<S: AsRef<str>, B: ServerConfig + DeserializeOwned>(
+        sand_name: S,
+    ) -> ServerResult<B> {
+        Self::restore_with_namespace(sand_name, DEFAULT_NAMESPACE)
+    }
+
+    pub fn restore_with_namespace<
+        S: AsRef<str>,
+        B: ServerConfig + DeserializeOwned,
+        N: AsRef<str>,
+    >(
+        sand_name: S,
+        namespace: N,
+    ) -> ServerResult<B> {
+        let config_marker = B::marker();
+        let key = format!(
+            "{}:{}@{}",
+            sand_name.as_ref(),
+            config_marker,
+            namespace.as_ref()
+        );
+        match INSTANCE.lock().unwrap().get(&key) {
+            Some(v) => serde_json::from_str(v).map_err(|e| {
+                StandardError::Other(format!(
+                    "The config cannot be deserialize, please check it. [{}] {:?}",
+                    key, e
+                ))
+            }),
+            None => Err(StandardError::NotSupport(format!(
+                "Not support this config, please init this config after create task -> [{}]",
+                key
+            ))),
+        }
+    }
+
+    pub fn raw_config(config: impl Serialize, format: ConfigFormat) -> anyhow::Result<String> {
+        let content = match format {
+            ConfigFormat::Yml => serde_yaml::to_string(&config)?,
+            ConfigFormat::Json => serde_json::to_string_pretty(&config)?,
+            ConfigFormat::Toml => toml::to_string(&config)?,
+        };
+        Ok(content)
+    }
+
+    pub fn persist_raw(
+        path_config: impl AsRef<Path>,
+        config: impl AsRef<str>,
+    ) -> anyhow::Result<()> {
+        let path = path_config.as_ref();
+        std::fs::write(path, config.as_ref())?;
+        log::info!("The config [{:?}] persisted", path);
+        Ok(())
+    }
+
+    pub fn persist(
+        path_config: impl AsRef<Path>,
+        config: impl Serialize,
+        format: ConfigFormat,
+    ) -> anyhow::Result<()> {
+        let content = Self::raw_config(config, format)?;
+        Self::persist_raw(path_config, content)
+    }
+
+    pub fn load<T>(path_config: impl AsRef<Path>) -> anyhow::Result<T>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let path = path_config.as_ref();
+        let mut c = config::Config::default();
+        c.merge(config::File::from(path))?;
+        let tc = c.try_into::<T>().map_err(|e| {
+            StandardError::Api(format!(
+                "Failed to load task config: {:?} path: {:?}",
+                e, path
+            ))
+        })?;
+        Ok(tc)
     }
 
 
