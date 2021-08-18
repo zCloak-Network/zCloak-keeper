@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use verify_traits::server::config::ConfigFormat;
+use server_traits::server::config::ConfigFormat;
 
 fn default_config_format() -> ConfigFormat {
     ConfigFormat::Toml
@@ -41,4 +41,18 @@ pub struct TaskSetPasswordParam {
     pub password: String,
     pub store: bool,
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct KvOperationParam {
+    pub namespace: Option<String>,
+    pub keys: Vec<String>,
+    pub values: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct KvListParam {
+    pub namespace: Option<String>,
+    pub sorted: bool,
+}
+
 

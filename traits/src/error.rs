@@ -2,7 +2,7 @@
 
 use thiserror::Error as ThisError;
 
-pub type VerifyResult<T> = core::result::Result<T, StandardError>;
+pub type ServerResult<T> = core::result::Result<T, StandardError>;
 
 /// Error enum.
 #[derive(ThisError, Debug)]

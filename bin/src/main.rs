@@ -1,23 +1,29 @@
 use structopt::StructOpt;
-
 use crate::utils::command::Opt;
-
 
 mod utils;
 mod handler;
+mod route;
 
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    utils::utils::init()?;
     let opt = Opt::from_args();
     match opt {
-        Opt::Server { option } => {
-            handler::handle_server(option).await?;
+        Opt::Server { options } => {
+            handler::handle_server(options).await?;
         }
         Opt::Task { server, command } => {
             handler::handle_task(server, command).await?;
         }
-    }
+        Opt::Crypto(command) => handler::handle_crypto(command).await?,
+        Opt::Kv {
+            server,
+            namespace,
+            command,
+        } => handler::handle_kv(server, namespace, command).await?,
+    };
     Ok(())
 }
 

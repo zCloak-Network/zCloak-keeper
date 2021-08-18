@@ -1,5 +1,5 @@
 [package]
-name = "zCloak-server"
+name = "zcloak-server"
 version = "0.1.0"
 authors = ["zCloak Network"]
 description = "zCloak verify server"
@@ -15,7 +15,7 @@ readme = 'README.md'
 edition = "2018"
 
 [[bin]]
-name = "zCloak-server"
+name = "zcloak-server"
 path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -35,6 +35,12 @@ async-recursion = "0.3"
 dirs = "3"
 rpassword = "5.0"
 
+microkv = { git = "https://github.com/ex0dus-0x/microkv.git", branch = "master" }
+
+
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-verify-traits = { path = "../../traits"}
+primitives = { path = "../primitives" }
+server-traits = { path = "../traits" }
+task-management = { path = "../task/task-management" }
+task-zcloak-substrate = { path = "../task/task-zcloak-substrate" }
