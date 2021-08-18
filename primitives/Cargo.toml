@@ -22,7 +22,7 @@ thiserror = "1"
 log = "0.4"
 async-trait = "0.1"
 array-bytes = "1.1"
-rlp = "0.4.4"
+rlp = "0.5.1"
 
 
 serde = { version = "1", features = ["derive"] }
@@ -31,18 +31,18 @@ reqwest = { version = "0.11", features = ["json"] }
 
 rust-crypto = "0.2"
 base64 = "0.13"
-uint = "0.8.5"
+uint = "0.9.1"
 
-jsonrpsee-types = "=0.2.0-alpha.6"
-jsonrpsee-ws-client = "=0.2.0-alpha.6"
-jsonrpsee-http-client = "=0.2.0-alpha.6"
+jsonrpsee-types = "0.3.0"
+jsonrpsee-ws-client = { version = "0.3.0", default-features = false }
+jsonrpsee-http-client = { version = "0.3.0", default-features = false }
 
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive", "full"] }
 web3 = { version = "0.16.0", git = "https://github.com/wuminzhe/rust-web3.git", branch = "master", features = ["signing"] }
 secp256k1 = { version = "0.20", features = ["recovery"] }
 
-substrate-subxt = { git = "https://github.com/darwinia-network/substrate-subxt.git", tag = "darwinia-v0.15.2" }
-substrate-subxt-proc-macro = { git = "https://github.com/darwinia-network/substrate-subxt.git", tag = "darwinia-v0.15.2" }
+substrate-subxt = { git = "https://github.com/zCloak-Network/substrate-subxt.git", branch = "master" }
+substrate-subxt-proc-macro = { git = "https://github.com/zCloak-Network/substrate-subxt.git", branch = "master" }
 
 server-traits = { path = "../traits" }
 

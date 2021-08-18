@@ -6,27 +6,29 @@ use server_traits::server::config::ConfigFormat;
 #[derive(Debug, StructOpt)]
 #[structopt(name = "verify", about = "zCloak server")]
 pub enum Opt {
-
+    /// Task Manager
     Task {
+        /// zCloak Server host 
         #[structopt(long, default_value = "http://127.0.0.1:3088")]
         server: String,
         #[structopt(flatten)]
         command: TaskCommand,
     },
-
+    /// The kv db storage operation
     Kv {
+        /// zCloak Server host
         #[structopt(long, default_value = "http://127.0.0.1:3088")]
         server: String,
-
+        /// The namespace of storage
         #[structopt(long, short)]
         namespace: Option<String>,
         #[structopt(flatten)]
         command: KvCommand,
     },
-
+    /// Crypto help command
     Crypto(CryptoCommand),
 
-
+    ///start zCloak Server
     Server {
         #[structopt(flatten)]
         options: ServerOptions,
