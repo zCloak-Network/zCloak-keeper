@@ -1,2 +1,2 @@
-pub mod verify;
 pub mod sudo;
+pub mod verify;

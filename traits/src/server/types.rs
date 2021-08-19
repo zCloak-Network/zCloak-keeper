@@ -1,14 +1,13 @@
-use std::path::PathBuf;
-use std::sync::Arc;
 use crate::server::config::ConfigFormat;
+use std::{path::PathBuf, sync::Arc};
 
 #[derive(Clone, Debug)]
 pub struct WebServerState {
-    pub base_path: Arc<PathBuf>,
+	pub base_path: Arc<PathBuf>,
 }
 
 #[derive(Clone, Debug)]
 pub struct ServerTaskState {
-    pub config_path: PathBuf,
-    pub config_format: ConfigFormat,
+	pub config_path: PathBuf,
+	pub config_format: ConfigFormat,
 }
