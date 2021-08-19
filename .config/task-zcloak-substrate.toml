@@ -1,0 +1,6 @@
+[zcloak]
+url = "ws://127.0.0.1:9944"
+private_key = "0x..."
+
+[ipfs]
+url_index = "https://ipfs.infura.io:5001/api/v0/cat?arg="
