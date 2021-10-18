@@ -44,10 +44,9 @@ impl Zcloak {
 					if let Ok(e) = UserTaskCreatedEvent::<ZcloakRuntime>::decode(&mut &r.data[..]) {
 						log::info!("start to para event data --");
 						let who = e.who;
-						let class = e.class;
 						let programhash = e.programhash;
 						let proofid = e.proofid;
-						let inputs = e.inputs;
+						let public_inputs = e.public_inputs;
 						let outputs = e.outputs;
 						let body = ipfs_client.fetch_proof(&proofid).await?;
 
@@ -64,7 +63,7 @@ impl Zcloak {
 							})?;
 
 						let is_success =
-							stark::verify(&programhash, &inputs, &outputs, &stark_proof);
+							stark::verify(&programhash, &public_inputs, &outputs, &stark_proof);
 
 						let res = if let Ok(r) = is_success {
 							log::debug!(
@@ -80,11 +79,12 @@ impl Zcloak {
 							false
 						};
 
-						log::debug! {"{:#?} commit a client single respnse call ---", &self.zcloak_account.account_id };
-						&self
+						log::debug! {"{:#?} commit a client single respnse call ,program hash is {:?},public inputs is {:?}, res is {:?} ---", 
+						&self.zcloak_account.account_id, &programhash, &public_inputs, &res};
+						let _ = &self
 							.client
 							.subxt
-							.client_single_reponse(&self.zcloak_account.signer, who, class, res)
+							.client_single_reponse(&self.zcloak_account.signer, who, programhash, public_inputs, res)
 							.await?;
 					} else {
 						log::error!("decode row data error : {:?}", r);

@@ -2,7 +2,7 @@ use codec::{Decode, Encode};
 use substrate_subxt::{system::System, Event};
 use substrate_subxt_proc_macro::{module, Call};
 
-use crate::types::{BlockNumber, Class};
+use crate::types::BlockNumber;
 use core::marker::PhantomData;
 use std::fmt::Debug;
 
@@ -14,10 +14,9 @@ pub trait StarksVerifierSeperate: System {
 #[derive(Clone, Debug, Eq, PartialEq, Event, Decode)]
 pub struct UserTaskCreatedEvent<T: StarksVerifierSeperate> {
 	pub who: <T as System>::AccountId,
-	pub class: Class,
 	pub programhash: T::ProgramHash,
 	pub proofid: Vec<u8>,
-	pub inputs: Vec<u128>,
+	pub public_inputs: Vec<u128>,
 	pub outputs: Vec<u128>,
 }
 
@@ -31,7 +30,8 @@ pub struct WhiteListAddedEvent<T: StarksVerifierSeperate> {
 pub struct ClientSingleReponseCall<T: StarksVerifierSeperate> {
 	pub _runtime: PhantomData<T>,
 	pub who: <T as System>::AccountId,
-	pub class: Class,
+	pub program_hash: T::ProgramHash,
+	pub public_inputs: Vec<u128>,
 	pub result: bool,
 }
 
