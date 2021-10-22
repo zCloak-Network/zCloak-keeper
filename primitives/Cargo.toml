@@ -46,5 +46,5 @@ substrate-subxt-proc-macro = { git = "https://github.com/zCloak-Network/substrat
 
 server-traits = { path = "../traits" }
 
-frame-support = "3.0.0"
+
 

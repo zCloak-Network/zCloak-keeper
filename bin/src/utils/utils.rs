@@ -2,6 +2,7 @@ use hyper::{Body, Request};
 use server_traits::{error::StandardError, server::task::ServerSand};
 use std::path::PathBuf;
 use task_zcloak_substrate::task::ZcloakTask;
+use task_moonbeam::task::MoonbeamTask;
 
 pub fn base_path(except_path: Option<PathBuf>) -> anyhow::Result<PathBuf> {
 	let base_path = except_path.unwrap_or_else(|| {
@@ -54,6 +55,8 @@ fn init_log() {
         task_management=debug,
         task_zcloak_substrate=debug,
         task_zcloak_substrate=trace,
+		task_moonbeam=debug,
+		task_moonbeam=trace,
         primitives=debug,
         components_subxt_client=debug,
         "#,
@@ -63,5 +66,8 @@ fn init_log() {
 }
 
 fn init_keep() -> anyhow::Result<()> {
-	task_management::task::add_available_tasks(vec![ZcloakTask::NAME])
+	task_management::task::add_available_tasks(vec![
+		ZcloakTask::NAME,
+		MoonbeamTask::NAME,
+	])
 }

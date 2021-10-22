@@ -1,8 +1,8 @@
 [package]
-name = "task-zcloak-substrate"
+name = "task-moonbeam"
 version = "0.1.0"
 authors = ["zCloak Network"]
-description = "zCloak verify server"
+description = "the task server for subscrible moonbeam"
 repository = "https://github.com/zCloak-Network/zCloak-server.git"
 include = [
     "Cargo.toml",
@@ -34,12 +34,12 @@ tokio = { version = "1", features = ["full"] }
 
 server-traits = { path = "../../traits"}
 task-management = { path = "../../task/task-management"}
-support-zcloak-node = { path = "../../supports/support-zcloak-node" }
 primitives = { path = "../../primitives" }
 components-subxt-client = { path = "../../components/subxt-client" }
-
-sp-keyring = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.10"}
-
+hex-literal = "0.3"
 env_logger = "0.9.0"
 
 async-recursion = "0.3.2"
+web3 = { version = "0.16.0", git = "https://github.com/wuminzhe/rust-web3.git", branch = "master", features = ["signing"] }
+array-bytes = "1.1.0"
+secp256k1 = { version = "0.20", features = ["recovery"]}

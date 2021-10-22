@@ -6,7 +6,7 @@ use server_traits::server::task::{
 
 use crate::{
 	bus::ZcloakTaskBus, config::ZcloakTaskConfig, message::ZcloakTaskMessage,
-	service::service::TaskService,
+	service::service::ZcloakNodeService,
 };
 
 #[derive(Debug)]
@@ -47,7 +47,7 @@ impl ZcloakTask {
 		let bus = ZcloakTaskBus::default();
 
 		let mut stack = TaskStack::new(bus);
-		stack.spawn_service::<TaskService>()?;
+		stack.spawn_service::<ZcloakNodeService>()?;
 
 		let mut sender = stack.bus().tx::<ZcloakTaskMessage>()?;
 		sender.send(ZcloakTaskMessage::TaskEvent).await?;

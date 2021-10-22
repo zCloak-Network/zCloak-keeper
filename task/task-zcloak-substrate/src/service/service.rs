@@ -10,13 +10,13 @@ use primitives::utils::ipfs::config::IpfsConfig;
 use support_zcloak_node::{account::ZcloakAccount, client::Zcloak, runtime::ZcloakRuntime};
 
 #[derive(Debug)]
-pub struct TaskService {
+pub struct ZcloakNodeService {
 	_greet: Lifeline,
 }
 
-impl ServerService for TaskService {}
+impl ServerService for ZcloakNodeService {}
 
-impl Service for TaskService {
+impl Service for ZcloakNodeService {
 	type Bus = ZcloakTaskBus;
 	type Lifeline = anyhow::Result<Self>;
 

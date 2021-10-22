@@ -44,3 +44,4 @@ primitives = { path = "../primitives" }
 server-traits = { path = "../traits" }
 task-management = { path = "../task/task-management" }
 task-zcloak-substrate = { path = "../task/task-zcloak-substrate" }
+task-moonbeam = { path = "../task/task-moonbeam" }
