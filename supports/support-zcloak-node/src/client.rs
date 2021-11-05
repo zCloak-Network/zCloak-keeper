@@ -3,6 +3,7 @@ use codec::Decode;
 use primitives::{
 	frame::verify::{ClientSingleReponseCallExt, UserTaskCreatedEvent},
 	utils::ipfs::client::IpfsClient,
+	utils::utils,
 };
 use server_traits::error::StandardError;
 use sp_keyring::AccountKeyring;
@@ -49,43 +50,24 @@ impl Zcloak {
 						let proofid = e.proofid;
 						let inputs = e.inputs;
 						let outputs = e.outputs;
-						let body = ipfs_client.fetch_proof(&proofid).await?;
 
-						// let body_str = str::from_utf8(&body).map_err(|_| {
-						// 	StandardError::Other("bytes to string got error !".to_string())
-						// });
-						let proof = hex::decode(&body[0..body.len()]).map_err(|_| {
-							StandardError::Hex2Bytes("hex to bytes got error!".to_string())
-						})?;
-
-						let stark_proof = bincode::deserialize::<stark::StarkProof>(&proof)
-							.map_err(|_| {
-								StandardError::Other("verifier deserialize error".to_string())
-							})?;
-
-						let is_success =
-							stark::verify(&programhash, &inputs, &outputs, &stark_proof);
-
-						let res = if let Ok(r) = is_success {
-							log::debug!(
-								"proofid {:?} stark verify true ---",
-								str::from_utf8(&proofid).unwrap()
-							);
-							r
-						} else {
-							log::debug!(
-								"proofid {:?} stark verify false --",
-								str::from_utf8(&proofid).unwrap()
-							);
-							false
-						};
+						let res = utils::verifier_proof(
+							String::from("zcloak node"),
+							&ipfs_client,
+							proofid,
+							programhash,
+							inputs,
+							outputs
+						).await?;
 
 						log::debug! {"{:#?} commit a client single respnse call ---", &self.zcloak_account.account_id };
-						&self
+						
+						let _ = &self
 							.client
 							.subxt
 							.client_single_reponse(&self.zcloak_account.signer, who, class, res)
 							.await?;
+
 					} else {
 						log::error!("decode row data error : {:?}", r);
 					}

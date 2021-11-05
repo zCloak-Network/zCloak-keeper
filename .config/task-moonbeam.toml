@@ -1,6 +1,9 @@
 [moonbeam]
 url = "ws://127.0.0.1:9933"
 
+[ipfs]
+url_index = "https://ipfs.infura.io:5001/api/v0/cat?arg="
+
 [contract]
 address = "0x970951a12F975E6762482ACA81E57D5A2A4e73F4"
 topics = ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"]

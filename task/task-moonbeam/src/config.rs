@@ -1,3 +1,4 @@
+use primitives::utils::ipfs::config::IpfsConfig;
 use serde::{Deserialize, Serialize};
 use server_traits::server::config::{Config, ServerConfig};
 
@@ -5,6 +6,8 @@ use server_traits::server::config::{Config, ServerConfig};
 pub struct MoonbeamTaskConfig {
 	pub moonbeam: MoonbeamConfig,
 	pub contract: ContractConfig,
+	pub ipfs: IpfsConfig,
+
 }
 
 impl MoonbeamTaskConfig {
@@ -12,11 +15,12 @@ impl MoonbeamTaskConfig {
 		let sand_name = sand_name.as_ref();
 		Config::store_with_namespace(sand_name, self.moonbeam.clone(), "moonbeam")?;
 		Config::store_with_namespace(sand_name, self.contract.clone(), "contract")?;
+		Config::store_with_namespace(sand_name, self.ipfs.clone(), "ipfs")?;
 		Ok(())
 	}
 
 	pub fn template() -> Self {
-		Self { moonbeam: MoonbeamConfig::template(), contract: ContractConfig::template() }
+		Self { moonbeam: MoonbeamConfig::template(), contract: ContractConfig::template() ,ipfs: IpfsConfig::template()}
 	}
 }
 
