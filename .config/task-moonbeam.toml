@@ -7,3 +7,9 @@ url_index = "https://ipfs.infura.io:5001/api/v0/cat?arg="
 [contract]
 address = "0x970951a12F975E6762482ACA81E57D5A2A4e73F4"
 topics = ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"]
+password = "123456"
+uuid = "d7a758a7-9023-4b3e-a603-0adbb571e4c3"
+
+[kilt]
+url = "wss://full-nodes.kilt.io:9944/"
+private_key = "0x..."

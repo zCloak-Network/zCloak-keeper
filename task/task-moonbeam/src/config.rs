@@ -7,6 +7,7 @@ pub struct MoonbeamTaskConfig {
 	pub moonbeam: MoonbeamConfig,
 	pub contract: ContractConfig,
 	pub ipfs: IpfsConfig,
+	pub kilt: KiltConfig,
 
 }
 
@@ -16,11 +17,15 @@ impl MoonbeamTaskConfig {
 		Config::store_with_namespace(sand_name, self.moonbeam.clone(), "moonbeam")?;
 		Config::store_with_namespace(sand_name, self.contract.clone(), "contract")?;
 		Config::store_with_namespace(sand_name, self.ipfs.clone(), "ipfs")?;
+		Config::store_with_namespace(sand_name, self.kilt.clone(), "kilt")?;
 		Ok(())
 	}
 
 	pub fn template() -> Self {
-		Self { moonbeam: MoonbeamConfig::template(), contract: ContractConfig::template() ,ipfs: IpfsConfig::template()}
+		Self { moonbeam: MoonbeamConfig::template(), 
+			contract: ContractConfig::template() ,
+			ipfs: IpfsConfig::template(), 
+			kilt: KiltConfig::template()}
 	}
 }
 
@@ -43,6 +48,8 @@ impl ServerConfig for MoonbeamConfig {
 pub struct ContractConfig {
     pub address: String,
     pub topics: Vec<String>,
+	pub password: String,
+	pub uuid: String,
 }
 
 
@@ -54,7 +61,28 @@ impl ServerConfig for ContractConfig {
     fn template() -> Self {
         Self {
             address: "0x...".to_string(),
-            topics: vec!["0x...".to_string()]
+            topics: vec!["0x...".to_string()],
+			password: "".to_string(),
+			uuid: "".to_string()
         }
     }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct KiltConfig {
+	pub url: String,
+	pub private_key: String,
+}
+
+impl ServerConfig for KiltConfig {
+	fn marker() ->&'static str {
+		"kilt"
+	}
+
+	fn template() -> Self {
+		Self {
+			url: "".to_string(),
+			private_key: "0x...".to_string(),
+		}
+	}
 }

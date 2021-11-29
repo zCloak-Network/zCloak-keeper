@@ -38,6 +38,8 @@ server-traits = { path = "../../traits"}
 task-management = { path = "../../task/task-management"}
 primitives = { path = "../../primitives" }
 components-subxt-client = { path = "../../components/subxt-client" }
+support-kilt-node = { path = "../../supports/support-kilt-node" }
+
 hex-literal = "0.3"
 env_logger = "0.9.0"
 hex = { version = "0.4",optional = true}
@@ -46,7 +48,10 @@ web3 = { version = "0.16.0", git = "https://github.com/wuminzhe/rust-web3.git", 
 array-bytes = "1.1.0"
 secp256k1 = { version = "0.20", features = ["recovery"]}
 starksVM = { git = "https://github.com/byteflyfunny/starks-verifier.git", default-features = false}
+eth-keystore = "0.3.0"
+subxt = { git = "https://github.com/byteflyfunny/substrate-subxt.git", branch = "jay_subxt" }
 
+# frame-support = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.12"}
 
 [features]
 default = ["std"]

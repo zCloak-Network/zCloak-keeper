@@ -1,8 +1,6 @@
 use array_bytes::hex2bytes_unchecked as mybytes;
 use lifeline::{Bus, Lifeline, Receiver, Service, Task};
 use secp256k1::SecretKey;
-use std::str::FromStr;
-use anyhow::anyhow;
 use web3::{
     Web3,
     ethabi::ethereum_types::U256,
@@ -16,19 +14,20 @@ use web3::{
 };
 use server_traits::server::{config::Config, service::ServerService, task::ServerSand};
 use crate::{
-	bus::MoonbeamTaskBus, config::{MoonbeamConfig,ContractConfig}, message::MoonbeamTaskMessage, task::MoonbeamTask,
+	bus::MoonbeamTaskBus, config::{MoonbeamConfig,ContractConfig,KiltConfig}, 
+    message::MoonbeamTaskMessage, task::MoonbeamTask,
     event::CreateTaskEvent
 };
 use primitives::utils::ipfs::config::IpfsConfig;
 use primitives::utils::ipfs::client::IpfsClient;
 use primitives::utils::utils;
-use server_traits::error::StandardError;
-use starksVM as stark;
-use codec::Decode;
-use std::str;
-use std::convert::TryInto;
-use std::convert::TryFrom;
+use eth_keystore::decrypt_key;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
+use support_kilt_node::client::Kilt;
 
 
 
@@ -52,7 +51,7 @@ impl Service for MoonBeamService {
         let moonbean_config: MoonbeamConfig = Config::restore_with_namespace(MoonbeamTask::NAME, "moonbeam")?;
         let contract_config: ContractConfig = Config::restore_with_namespace(MoonbeamTask::NAME, "contract")?;
         let ipfs_config: IpfsConfig = Config::restore_with_namespace(MoonbeamTask::NAME, "ipfs")?;
-        
+        let kilt_config: KiltConfig = Config::restore_with_namespace(MoonbeamTask::NAME, "kilt")?;
         
 		let _greet = Self::try_task(&format!("{}-service-task", MoonbeamTask::NAME), async move {
 			while let Some(message) = rx.recv().await {
@@ -63,9 +62,13 @@ impl Service for MoonBeamService {
                         let address = contract_config.address.clone();
                         let topics = contract_config.topics.clone();
                         let ipfs_url = ipfs_config.url_index.clone();
+                        let password = contract_config.password.clone();
+                        let uuid = contract_config.uuid.clone();
+                        let kilt_url = kilt_config.url.clone();
+                        let seed = kilt_config.private_key.clone();
 
 						// zcloak_client.subscribe_events(ipfs_config.clone()).await?;
-						tokio::spawn(async move { run_subscribe(url, address, topics, ipfs_url).await });
+						tokio::spawn(async move { run_subscribe(url, address, topics, ipfs_url, password, uuid, kilt_url, seed).await });
 						log::info!("moonbeam server is running")
 					},
 				}
@@ -82,7 +85,15 @@ impl Service for MoonBeamService {
 	}
 }
 
-async fn run_subscribe(url: String, address: String, topics: Vec<String>, ipfs_url:String)->  anyhow::Result<()>  {
+async fn run_subscribe(url: String, 
+    address: String, 
+    topics: Vec<String>, 
+    ipfs_url: String, 
+    password: String, 
+    uuid: String,
+    kilt_url: String,
+    seed: String,
+)->  anyhow::Result<()>  {
     // let url = moonbean_config.url.clone();
     // let address = contract_onfig.address.clone();
     // let topics = contract_onfig.topics.clone();
@@ -96,25 +107,27 @@ async fn run_subscribe(url: String, address: String, topics: Vec<String>, ipfs_u
 
     let web3 = Web3::new(WebSocket::new(&url).await?);
 
-    // if users don't known the topics ,we also can compute the call function to get the hex value;
-    // let hash = web3::signing::keccak256("Transfer(address,address,uint256)".as_bytes());
-    let hash = web3::signing::keccak256("CreateTaskEvent(address,bytes,uint128[],uint128[],string)".as_bytes());
-    let hash = array_bytes::bytes2hex("", hash);
-    log::info!("hash is {:?}", hash);
-
-    let prvk = SecretKey::from_slice(&mybytes("0x5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133"))?;
 
     //get contract instance from json file
     let contract = Contract::from_json(
         web3.eth(),
         address.clone(),
-        include_bytes!("./ZeroKnowlegeProof.json"),
+        include_bytes!("./KiltProofs.json"),
     )?;
 
-    let create_task_event = contract.abi().event("CreateTaskEvent").unwrap();
+    log::info!("create contract instance !");
+
+    let create_task_event = contract.abi().event("AddProof").unwrap();
     let task_hash = create_task_event.signature();
 
-    log::info!("create contract instance !");
+    let mut file = String::from("/Users/jay/Project/zCloak-worker/keys/");
+    file.push_str(uuid.as_str());
+
+    let key_path = Path::new(&file);
+    let entropy = decrypt_key(&key_path, password)?;
+    let prk = hex::encode(entropy);
+    let prvk = SecretKey::from_slice(&mybytes(prk))?;
+
     // get subscribtion
     let filter = FilterBuilder::default()
             .address(vec![address])
@@ -127,6 +140,13 @@ async fn run_subscribe(url: String, address: String, topics: Vec<String>, ipfs_u
             .build();
     log::info!("moonbeam service start to subscribe evm event!");
     let mut sub = web3.eth_subscribe().subscribe_logs(filter).await?;
+
+
+    
+
+
+
+
 
     loop {
         let raw = sub.next().await;
@@ -146,6 +166,8 @@ async fn run_subscribe(url: String, address: String, topics: Vec<String>, ipfs_u
 
                             match create_param {
                                 Ok(create_param) => {
+
+                                    //distaff verifier
                                     let res = utils::verifier_proof(
                                         String::from("moonbeam"),
                                         &ipfs_client,
@@ -155,13 +177,20 @@ async fn run_subscribe(url: String, address: String, topics: Vec<String>, ipfs_u
                                         create_param.outputs
                                     ).await?;
 
+                                    //kilt storage get 
+                                    log::info!("kilt 0-----{:?}", kilt_url.clone());
+                                    let root_hash = "".to_string();
+
+                                    let attestations = Kilt::query_attestation(kilt_url.clone(), seed.clone(), root_hash).await?;
+                                    log::info!("kilt 1-----");
+
                                     //call saveProof function transaction through contract instance
-                                    let inputs = (create_param.sender,create_param.sender,create_param.program,res);
+                                    let inputs = (create_param.sender,create_param.root_hash,create_param.c_type,create_param.program,true, true);
 
                                     let key_ref = SecretKeyRef::new(&prvk);
 
                                     let tx = contract.signed_call_with_confirmations(
-                                        "saveProof",
+                                        "addVerification",
                                         inputs, 
                                         Options::default(),
                                         1,
@@ -172,12 +201,14 @@ async fn run_subscribe(url: String, address: String, topics: Vec<String>, ipfs_u
 
                                 },
                                 Err(e) => {
-                                    log::error!("Parse params failed ! , exception stack is:{:?}", e);
+                                    log::error!("Parse params failed ! , {:?}", e);
+                                    continue;
                                 }
                             }
                         }
                         _ => {
                             log::debug!{"moonbeam service : parse_log raw log failed !"}
+                            continue;
                         }
                     }
                 }
