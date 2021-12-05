@@ -1,0 +1,15 @@
+[2021-11-27T12:42:28Z INFO  zcloak_server::handler::handle_server] Start to init zCloak server 
+[2021-11-27T12:42:28Z INFO  zcloak_server::handler::handle_server] zCloak server base path is :/Users/jay/.zcloak-server
+[2021-11-27T12:42:28Z INFO  zcloak_server::handler::handle_server] zCloak server start to auto start task! 
+[2021-11-27T12:42:28Z DEBUG lifeline::dyn_bus::storage] MoonbeamTaskMessage linked in MoonbeamTaskBus
+[2021-11-27T12:42:28Z DEBUG lifeline::spawn] START MoonBeamService/task-moonbeam-service-task
+[2021-11-27T12:42:28Z INFO  task_moonbeam::service::service] moonbeam server is running
+[2021-11-27T12:42:28Z INFO  task_moonbeam::service::service] Moonbeam url is "ws://127.0.0.1:9944"
+[2021-11-27T12:42:28Z INFO  task_moonbeam::service::service] The Contract deployed on Moonbeam , Address is "0x4E59375B3dD5f68CCEC1080Bf2283550376D3627"
+[2021-11-27T12:42:28Z INFO  zcloak_server::handler::handle_server] zCloak server is running on: 127.0.0.1:3088
+[2021-11-27T12:42:28Z INFO  task_moonbeam::service::service] create contract instance !
+[2021-11-27T12:42:28Z INFO  task_moonbeam::service::service] moonbeam service start to subscribe evm event!
+[2021-11-27T12:42:28Z INFO  task_moonbeam::service::service] kilt 0-----"ws://127.0.0.1:9922"
+[2021-11-27T12:42:28Z INFO  support_kilt_node::client] ------- query attestation 
+[2021-11-27T12:42:28Z INFO  support_kilt_node::client] result is 0
+[2021-11-27T12:42:28Z INFO  task_moonbeam::service::service] kilt 1-----

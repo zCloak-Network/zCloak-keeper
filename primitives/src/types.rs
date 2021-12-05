@@ -1,5 +1,5 @@
 use codec::{Decode, Encode};
-use substrate_subxt::sp_runtime::{AccountId32, MultiAddress};
+use subxt::sp_runtime::{AccountId32, MultiAddress};
 
 pub type BlockNumber = u32;
 pub type Class = Vec<u8>;

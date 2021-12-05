@@ -31,6 +31,30 @@ pub enum Opt {
 		#[structopt(flatten)]
 		options: ServerOptions,
 	},
+
+	///use zCloak tools
+	Tools {
+		#[structopt(flatten)]
+		command: ToolsCommand,
+	},
+
+	/// Crypto help command
+	Crypto(CryptoCommand),
+}
+
+
+#[derive(Debug, StructOpt)]
+pub enum CryptoCommand {
+    /// encrypt a value
+    Encrypt {
+        #[structopt(flatten)]
+        options: CryptoOptions,
+    },
+    /// decrypt a value
+    Decrypt {
+        #[structopt(flatten)]
+        options: CryptoOptions,
+    },
 }
 
 #[derive(Debug, StructOpt)]
@@ -108,6 +132,35 @@ pub enum TaskCommand {
 	},
 }
 
+
+
+#[derive(Debug, StructOpt)]
+pub enum ToolsCommand {
+
+	///tools keccak256 computs the hash of input
+	Keccak256 {
+		///inputs 
+		#[structopt(short, long)]
+		inputs: String,
+	},
+	Decrypt {
+		///path
+		#[structopt(short, long)]
+		path: String,
+
+		///password
+		#[structopt(short, long)]
+		password: String,
+	},
+	NewAccount {
+		///password
+		#[structopt(short, long)]
+		password: String,
+	}
+
+
+}
+
 #[derive(Clone, Debug, StructOpt)]
 pub struct TaskExecuteOptions {
 	/// The task name
@@ -156,4 +209,12 @@ pub struct ServerOptions {
 	///The zCloak server config or data base path
 	#[structopt(long, parse(from_os_str))]
 	pub base_path: Option<PathBuf>,
+}
+
+
+#[derive(Clone, Debug, StructOpt)]
+pub struct CryptoOptions {
+    /// The value your want encrypt or decrypt
+    #[structopt(short, long)]
+    pub value: String,
 }

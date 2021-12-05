@@ -1,7 +1,7 @@
 use hyper::{Body, Request};
 use server_traits::{error::StandardError, server::task::ServerSand};
 use std::path::PathBuf;
-use task_zcloak_substrate::task::ZcloakTask;
+// use task_zcloak_substrate::task::ZcloakTask;
 use task_moonbeam::task::MoonbeamTask;
 
 pub fn base_path(except_path: Option<PathBuf>) -> anyhow::Result<PathBuf> {
@@ -52,6 +52,7 @@ fn init_log() {
         lifeline=debug,
         zcloak_server=debug,
         support_zcloak_node=debug,
+		support_kilt_node=debug,
         task_management=debug,
         task_zcloak_substrate=debug,
         task_zcloak_substrate=trace,
@@ -59,6 +60,7 @@ fn init_log() {
 		task_moonbeam=trace,
         primitives=debug,
         components_subxt_client=debug,
+		substrate_subxt=debug,
         "#,
 	);
 	std::env::set_var("RUST_BACKTRACE", "1");
@@ -67,7 +69,7 @@ fn init_log() {
 
 fn init_keep() -> anyhow::Result<()> {
 	task_management::task::add_available_tasks(vec![
-		ZcloakTask::NAME,
+		// ZcloakTask::NAME,
 		MoonbeamTask::NAME,
 	])
 }

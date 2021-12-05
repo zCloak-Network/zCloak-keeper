@@ -2,8 +2,9 @@
 members = [
     "primitives",
     "bin",
-    "components/*",
-    "supports/*",
+    "components/http-client",
+    "supports/support-kilt-node",
     "traits",
-    "task/*",
+    "task/task-management",
+    "task/task-moonbeam"
 ]

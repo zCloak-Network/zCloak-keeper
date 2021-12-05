@@ -8,7 +8,7 @@ use server_traits::{
 		types::ServerTaskState,
 	},
 };
-use task_zcloak_substrate::task::ZcloakTask;
+// use task_zcloak_substrate::task::ZcloakTask;
 use task_moonbeam::task::MoonbeamTask;
 
 use crate::utils::transfer::{TaskConfigTemplateParam, TaskStartParam};
@@ -78,11 +78,11 @@ pub async fn start_task_single(base_path: PathBuf, param: TaskStartParam) -> any
 		state_server.put_task_config_password(name, password, param.store_password)?;
 	}
 	match name {
-		ZcloakTask::NAME => {
-			let task_config = Config::load(&path_config)?;
-			let task = ZcloakTask::new(task_config).await?;
-			task_management::task::keep_task(ZcloakTask::NAME, Box::new(task))?;
-		}
+		// ZcloakTask::NAME => {
+		// 	let task_config = Config::load(&path_config)?;
+		// 	let task = ZcloakTask::new(task_config).await?;
+		// 	task_management::task::keep_task(ZcloakTask::NAME, Box::new(task))?;
+		// }
 		MoonbeamTask::NAME => {
 			let task_config = Config::load(&path_config)?;
 			let task = MoonbeamTask::new(task_config).await?;
@@ -108,7 +108,8 @@ pub fn task_config_template(param: TaskConfigTemplateParam) -> anyhow::Result<St
 		return Err(StandardError::Api(format!("Not support this task [{}]", &task_name)).into())
 	}
 	let value = match &task_name[..] {
-		ZcloakTask::NAME => ZcloakTask::config_template(),
+		// ZcloakTask::NAME = ZcloakTask::config_template(),
+		MoonbeamTask::NAME => MoonbeamTask::config_template(),
 		_ =>
 			return Err(StandardError::Api(format!(
 				"Unsupported to show default config template: [{}]",

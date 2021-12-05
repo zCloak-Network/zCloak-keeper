@@ -16,8 +16,15 @@ async fn main() -> anyhow::Result<()> {
 		Opt::Task { server, command } => {
 			handler::handle_task(server, command).await?;
 		},
-		Opt::Kv { server, namespace, command } =>
-			handler::handle_kv(server, namespace, command).await?,
-	};
+		Opt::Kv { server, namespace, command } => {
+			handler::handle_kv(server, namespace, command).await?;
+		},
+		Opt::Crypto(command) => {
+			handler::handle_crypto(command).await?;
+		},
+		Opt::Tools { command } => {
+			handler::handle_tools( command ).await?;
+		},
+	}
 	Ok(())
 }
