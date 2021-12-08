@@ -1,6 +1,5 @@
 
-use crate::utils::ipfs::client::IpfsClient;
-
+use component_ipfs::IpfsClient;
 use starksVM as stark;
 use std::str;
 
@@ -10,11 +9,11 @@ use std::str;
 pub async fn verifier_proof(
     task_name: String,
     ipfs_client: &IpfsClient,
-    proof_id: Vec<u8>, 
-    program_hash: [u8; 32], 
-    public_inputs: Vec<u128>, 
-    outputs: Vec<u128>) -> anyhow::Result<bool, anyhow::Error> {
-        let body = ipfs_client.fetch_proof(&proof_id).await?;
+    proof_id: &[u8], 
+    program_hash: &[u8; 32], 
+    public_inputs: &[u128], 
+    outputs: &[u128]) -> anyhow::Result<bool, anyhow::Error> {
+        let body = ipfs_client.fetch_proof(proof_id).await?;
         let proof = hex::decode(&body[0..body.len()]);
         let mut res = false;
         match proof {
@@ -23,7 +22,7 @@ pub async fn verifier_proof(
                     match stark_proof {
                         Ok(stark_proof) => {
                             let is_success =
-                            stark::verify(&program_hash, &public_inputs, &outputs, &stark_proof);
+                            stark::verify(program_hash, public_inputs, outputs, &stark_proof);
                             res = if let Ok(r) = is_success {
                                 log::debug!(
                                     "task name:{:?} , proofid {:?} stark verify true !",&task_name,

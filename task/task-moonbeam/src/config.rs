@@ -1,4 +1,4 @@
-use primitives::utils::ipfs::config::IpfsConfig;
+use component_ipfs::config::IpfsConfig;
 use serde::{Deserialize, Serialize};
 use server_traits::server::config::{Config, ServerConfig};
 

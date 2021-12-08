@@ -18,8 +18,8 @@ use crate::{
     message::MoonbeamTaskMessage, task::MoonbeamTask,
     event::CreateTaskEvent
 };
-use primitives::utils::ipfs::config::IpfsConfig;
-use primitives::utils::ipfs::client::IpfsClient;
+use component_ipfs::config::IpfsConfig;
+use component_ipfs::IpfsClient;
 use primitives::utils::utils;
 use eth_keystore::decrypt_key;
 use std::{
@@ -56,7 +56,7 @@ impl Service for MoonBeamService {
 		let _greet = Self::try_task(&format!("{}-service-task", MoonbeamTask::NAME), async move {
 			while let Some(message) = rx.recv().await {
 				match message {
-					MoonbeamTaskMessage::TaskEvent => {
+					MoonbeamTaskMessage::ListenMoonbeam => {
 
                         let url = moonbean_config.url.clone();
                         let address = contract_config.address.clone();
@@ -71,6 +71,8 @@ impl Service for MoonBeamService {
 						tokio::spawn(async move { run_subscribe(url, address, topics, ipfs_url, password, uuid, kilt_url, seed).await });
 						log::info!("moonbeam server is running")
 					},
+                    //TODO: fill this later
+                    _ => {},
 				}
 				log::debug!(
 					target: MoonbeamTask::NAME,
@@ -171,10 +173,10 @@ async fn run_subscribe(url: String,
                                     let res = utils::verifier_proof(
                                         String::from("moonbeam"),
                                         &ipfs_client,
-                                        create_param.proof_id,
-                                        create_param.program_hash,
-                                        create_param.public_inputs,
-                                        create_param.outputs
+                                        &create_param.proof_id,
+                                        &create_param.program_hash,
+                                        &create_param.public_inputs,
+                                        &create_param.outputs
                                     ).await?;
 
                                     //kilt storage get 

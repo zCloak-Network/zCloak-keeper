@@ -421,6 +421,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "component-ipfs"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "log",
+ "reqwest",
+ "serde 1.0.130",
+ "server-traits",
+]
+
+[[package]]
 name = "components-subxt-client"
 version = "0.1.0"
 dependencies = [
@@ -2271,6 +2283,7 @@ dependencies = [
  "async-trait",
  "base64 0.13.0",
  "bincode",
+ "component-ipfs",
  "hex",
  "jsonrpsee-http-client",
  "jsonrpsee-types",
@@ -4127,6 +4140,7 @@ dependencies = [
  "async-recursion",
  "async-trait",
  "bincode",
+ "component-ipfs",
  "components-subxt-client",
  "env_logger 0.9.0",
  "eth-keystore",

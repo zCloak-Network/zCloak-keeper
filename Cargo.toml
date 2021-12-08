@@ -2,7 +2,7 @@
 members = [
     "primitives",
     "bin",
-    "components/http-client",
+    "components/*",
     "supports/support-kilt-node",
     "traits",
     "task/task-management",
