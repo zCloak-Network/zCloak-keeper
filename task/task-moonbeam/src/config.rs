@@ -8,7 +8,6 @@ pub struct MoonbeamTaskConfig {
 	pub contract: ContractConfig,
 	pub ipfs: IpfsConfig,
 	pub kilt: KiltConfig,
-
 }
 
 impl MoonbeamTaskConfig {
@@ -22,10 +21,12 @@ impl MoonbeamTaskConfig {
 	}
 
 	pub fn template() -> Self {
-		Self { moonbeam: MoonbeamConfig::template(), 
-			contract: ContractConfig::template() ,
-			ipfs: IpfsConfig::template(), 
-			kilt: KiltConfig::template()}
+		Self {
+			moonbeam: MoonbeamConfig::template(),
+			contract: ContractConfig::template(),
+			ipfs: IpfsConfig::template(),
+			kilt: KiltConfig::template(),
+		}
 	}
 }
 
@@ -46,26 +47,25 @@ impl ServerConfig for MoonbeamConfig {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ContractConfig {
-    pub address: String,
-    pub topics: Vec<String>,
+	pub address: String,
+	pub topics: Vec<String>,
 	pub password: String,
 	pub uuid: String,
 }
 
-
 impl ServerConfig for ContractConfig {
-    fn marker() ->&'static str {
-        "contract"
-    }
+	fn marker() -> &'static str {
+		"contract"
+	}
 
-    fn template() -> Self {
-        Self {
-            address: "0x...".to_string(),
-            topics: vec!["0x...".to_string()],
+	fn template() -> Self {
+		Self {
+			address: "0x...".to_string(),
+			topics: vec!["0x...".to_string()],
 			password: "".to_string(),
-			uuid: "".to_string()
-        }
-    }
+			uuid: "".to_string(),
+		}
+	}
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -75,14 +75,11 @@ pub struct KiltConfig {
 }
 
 impl ServerConfig for KiltConfig {
-	fn marker() ->&'static str {
+	fn marker() -> &'static str {
 		"kilt"
 	}
 
 	fn template() -> Self {
-		Self {
-			url: "".to_string(),
-			private_key: "0x...".to_string(),
-		}
+		Self { url: "".to_string(), private_key: "0x...".to_string() }
 	}
 }

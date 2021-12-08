@@ -42,19 +42,18 @@ pub enum Opt {
 	Crypto(CryptoCommand),
 }
 
-
 #[derive(Debug, StructOpt)]
 pub enum CryptoCommand {
-    /// encrypt a value
-    Encrypt {
-        #[structopt(flatten)]
-        options: CryptoOptions,
-    },
-    /// decrypt a value
-    Decrypt {
-        #[structopt(flatten)]
-        options: CryptoOptions,
-    },
+	/// encrypt a value
+	Encrypt {
+		#[structopt(flatten)]
+		options: CryptoOptions,
+	},
+	/// decrypt a value
+	Decrypt {
+		#[structopt(flatten)]
+		options: CryptoOptions,
+	},
 }
 
 #[derive(Debug, StructOpt)]
@@ -132,14 +131,11 @@ pub enum TaskCommand {
 	},
 }
 
-
-
 #[derive(Debug, StructOpt)]
 pub enum ToolsCommand {
-
 	///tools keccak256 computs the hash of input
 	Keccak256 {
-		///inputs 
+		///inputs
 		#[structopt(short, long)]
 		inputs: String,
 	},
@@ -156,9 +152,7 @@ pub enum ToolsCommand {
 		///password
 		#[structopt(short, long)]
 		password: String,
-	}
-
-
+	},
 }
 
 #[derive(Clone, Debug, StructOpt)]
@@ -185,7 +179,8 @@ pub struct TaskControlOptions {
 	/// The config format, supports [toml|json|yml]
 	#[structopt(long, default_value = "toml")]
 	pub format: ConfigFormat,
-	/// The config file path, When first run this is required, but the server already have this task config, can be skip this parameter
+	/// The config file path, When first run this is required, but the server already have this
+	/// task config, can be skip this parameter
 	#[structopt(short, long)]
 	pub config: Option<PathBuf>,
 	/// The password to decrypt config if necessary
@@ -211,10 +206,9 @@ pub struct ServerOptions {
 	pub base_path: Option<PathBuf>,
 }
 
-
 #[derive(Clone, Debug, StructOpt)]
 pub struct CryptoOptions {
-    /// The value your want encrypt or decrypt
-    #[structopt(short, long)]
-    pub value: String,
+	/// The value your want encrypt or decrypt
+	#[structopt(short, long)]
+	pub value: String,
 }

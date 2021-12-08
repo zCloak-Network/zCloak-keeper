@@ -23,7 +23,7 @@ async fn main() -> anyhow::Result<()> {
 			handler::handle_crypto(command).await?;
 		},
 		Opt::Tools { command } => {
-			handler::handle_tools( command ).await?;
+			handler::handle_tools(command).await?;
 		},
 	}
 	Ok(())

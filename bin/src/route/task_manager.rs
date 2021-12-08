@@ -87,7 +87,7 @@ pub async fn start_task_single(base_path: PathBuf, param: TaskStartParam) -> any
 			let task_config = Config::load(&path_config)?;
 			let task = MoonbeamTask::new(task_config).await?;
 			task_management::task::keep_task(MoonbeamTask::NAME, Box::new(task))?;
-		}
+		},
 
 		_ => return Err(StandardError::Api(format!("Unsupported task: [{}]", name)).into()),
 	};

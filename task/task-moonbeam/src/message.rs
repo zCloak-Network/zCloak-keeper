@@ -14,7 +14,7 @@ pub struct AddProof {
 	// roothash and result
 	pub public_output: Vec<u128>,
 	pub proof_cid: Vec<u8>,
-	pub expected_result: bool
+	pub expected_result: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -23,7 +23,7 @@ pub struct Attestation {
 	c_type: H256,
 	program_hash: H256,
 	root_hash: H256,
-	is_passed: bool
+	is_passed: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
