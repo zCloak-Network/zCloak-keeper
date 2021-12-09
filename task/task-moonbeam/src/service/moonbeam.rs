@@ -114,7 +114,7 @@ async fn run_subscribe(
 
 	//get contract instance from json file
 	let contract =
-		Contract::from_json(web3.eth(), address.clone(), include_bytes!("./KiltProofs.json"))?;
+		Contract::from_json(web3.eth(), address.clone(), include_bytes!("../../contracts/KiltProofs.json"))?;
 
 	log::info!("create contract instance !");
 
@@ -168,13 +168,13 @@ async fn run_subscribe(
 									log::info!("kilt 0-----{:?}", kilt_url.clone());
 									let root_hash = "".to_string();
 
-									let attestations = Kilt::query_attestation(
-										kilt_url.clone(),
-										seed.clone(),
-										root_hash,
-									)
-									.await?;
-									log::info!("kilt 1-----");
+									// let attestations = Kilt::query_attestation(
+									// 	kilt_url.clone(),
+									// 	seed.clone(),
+									// 	root_hash,
+									// )
+									// .await?;
+									// log::info!("kilt 1-----");
 
 									//call saveProof function transaction through contract instance
 									let inputs = (

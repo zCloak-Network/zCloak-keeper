@@ -6,7 +6,7 @@ use server_traits::server::task::{
 
 use crate::{
 	bus::MoonbeamTaskBus, config::MoonbeamTaskConfig, message::MoonbeamTaskMessage,
-	service::service::MoonBeamService,
+	service::moonbeam::MoonBeamService,
 };
 
 #[derive(Debug)]

@@ -1,12 +1,12 @@
 // use crate::{account::KiltAccount, runtime::KiltRuntime};
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
-use server_traits::error::StandardError;
 use subxt::{
-	sp_core::{sr25519::Pair, Pair as PairTrait},
 	sp_runtime::AccountId32,
-	Client, ClientBuilder, Config, EventSubscription, PairSigner,
+	Client, ClientBuilder, PairSigner,
 };
+use primitive_types::H256;
+
 
 #[derive(Clone, Copy, Decode, Debug, Encode, Eq, Ord, PartialEq, PartialOrd, TypeInfo)]
 pub enum DidEncryptionKey {
@@ -44,21 +44,14 @@ const _: () = {
 	}
 };
 
-use kilt::runtime_types::did::did_details::DidDetails;
-
 #[derive(Clone)]
 pub struct Kilt {}
 
 impl Kilt {
 	pub async fn query_attestation(
 		url: String,
-		seed: String,
-		root_hash: String,
-	) -> anyhow::Result<()> {
-		let pair = Pair::from_string(&seed, None).unwrap();
-		let signer = PairSigner::<kilt::DefaultConfig, Pair>::new(pair);
-		let public = signer.signer().public().0;
-		let account_id = AccountId32::from(public);
+		root_hash: H256,
+	) -> anyhow::Result<bool> {
 
 		let api = ClientBuilder::new()
 			.set_url(url)
@@ -67,12 +60,11 @@ impl Kilt {
 			.to_runtime_api::<kilt::RuntimeApi<kilt::DefaultConfig>>();
 
 		log::info!("------- query attestation ");
-		let mut iter = api.storage().did().did_iter(None).await?;
+		let maybe_attestation_details = api.storage().attestation().attestations(root_hash, None).await?;
+		// not revoked by kyc agent
+		let is_valid = maybe_attestation_details.map_or_else(|| false, |detail| !detail.revoked);
 
-		while let Some((key, DidDetails)) = iter.next().await? {
-			log::info!("result is {:?}", DidDetails.last_tx_counter);
-		}
-
-		Ok(())
+		Ok(is_valid)
+		
 	}
 }

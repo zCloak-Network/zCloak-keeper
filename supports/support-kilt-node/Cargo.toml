@@ -30,14 +30,10 @@ jsonrpsee-http-client = { version = "0.4.1", default-features = false }
 serde = { version = "1", features = ["derive"] }
 anyhow = "1.0"
 
-# substrate-subxt = { git = "https://github.com/byteflyfunny/substrate-subxt.git", branch = "master" }
-# substrate-subxt-proc-macro = { git = "https://github.com/byteflyfunny/substrate-subxt.git", branch = "master" }
 subxt = { git = "https://github.com/byteflyfunny/substrate-subxt.git", branch = "jay_subxt"}
 subxt-macro = { git = "https://github.com/byteflyfunny/substrate-subxt.git", branch = "jay_subxt" }
-# attestation = { git = "https://github.com/KILTprotocol/mashnet-node", branch = "master", default-features = false}
-# frame-support = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.10" }
-
 subxt-client = { package = "components-subxt-client", path = "../../components/subxt-client"}
 primitives = { package = "primitives", path = "../../primitives"}
 server-traits = { path = "../../traits"}
 scale-info = {version = "1.0", default-features = false, features = ["derive"]}
+primitive-types = { version = "0.10", features = ["scale-info"] }
