@@ -16,19 +16,18 @@ use crate::{
 	bus::MoonbeamTaskBus, config::{MoonbeamConfig,ContractConfig,KiltConfig}, 
     message::MoonbeamTaskMessage, task::MoonbeamTask
 };
-use component_ipfs::config::IpfsConfig;
-use component_ipfs::client::IpfsClient;
 use primitives::utils::utils;
 use std::path::{Path, PathBuf};
+use crate::message::KiltAttestation;
+use support_kilt_node::client::query_attestation;
 
-use crate::message::AddProof;
 
 #[derive(Debug)]
-pub struct IpfsService {
+pub struct AttestationService {
 	_greet: Lifeline,
 }
 
-impl ServerService for IpfsService {}
+impl ServerService for AttestationService {}
 
 impl Service for IpfsService {
 	type Bus = MoonbeamTaskBus;
@@ -36,29 +35,26 @@ impl Service for IpfsService {
 
 	fn spawn(bus: &Self::Bus) -> Self::Lifeline {
 		let mut rx = bus.rx::<MoonbeamTaskMessage>()?;
-        let ipfs_config: IpfsConfig = Config::restore_with_namespace(MoonbeamTask::NAME, "ipfs")?;
+        let mut tx = bus.tx::<MoonbeamTaskMessage>()?;
+        let kilt_config: IpfsConfig = Config::restore_with_namespace(MoonbeamTask::NAME, "kilt")?;
         
-		let _greet = Self::try_task(&format!("{}-service-task", MoonbeamTask::NAME), async move {
-			while let Some(message) = rx.recv().await {
-				match message {
-					MoonbeamTaskMessage::IpfsProof(
-                        AddProof {
-                            user,
-                            c_type,
-                            program_hash,
-                            public_input,
-                            public_output,
-                            proof_cid,
-                            expected_result 
-                        }) => {
-                            let ipfs_url = ipfs_config.url_index.clone();
-						    tokio::spawn(
-                                async move { fetch_and_verify(user, ipfs_url, c_type, &program_hash, &proof_cid, &public_input, &public_output, expected_result).await });
-						    log::info!("moonbeam server is running")
-					},
-                
-                // TODO: handle this
-                    _ => {},
+		let _greet = Self::try_task(
+            &format!("{}-query-attestation", MoonbeamTask::NAME), 
+            async move {
+			    while let Some(message) = rx.recv().await {
+				    match message {
+					    MoonbeamTaskMessage::KiltAttestation(attestation) => {
+                                let kilt_url = kilt_config.url.clone();
+                                let is_valid = query_attestation(
+                                    ipfs_url, 
+                                    attestation.root_hash
+                                ).await?;
+
+                                if is_valid {
+                                    tx.send(MoonbeamTaskMessage::SubmitVerification(attestation)).await?;
+                                }
+					}, 
+                    _ => continue,
                 }
 			}
 			Ok(())
@@ -66,33 +62,3 @@ impl Service for IpfsService {
 		Ok(Self { _greet })
 	}
 }
-
-// TODO: move ipfs connection out of verify_proof
-async fn fetch_and_verify(
-    user: Address, 
-    ipfs_url: String, 
-    c_type: H256,
-    program_hash: &[u8; 32],
-    proof_cid: &[u8],
-    public_input: &[u128],
-    public_output: &[u128],
-    expect_result: bool
-)->  anyhow::Result<()>  {    
-    let ipfs_client = IpfsClient::new(ipfs_url);
-
-
-    loop {
-        //distaff verifier
-        let res = utils::verifier_proof(
-            String::from("moonbeam"),
-            &ipfs_client,
-            proof_cid,
-            program_hash,
-            public_input,
-            public_output
-        ).await?;
-    }
-
-    Ok(())
-}
-

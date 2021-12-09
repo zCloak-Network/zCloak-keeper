@@ -40,7 +40,7 @@ impl Service for IpfsService {
 		let mut rx = bus.rx::<MoonbeamTaskMessage>()?;
 		let ipfs_config: IpfsConfig = Config::restore_with_namespace(MoonbeamTask::NAME, "ipfs")?;
 
-		let _greet = Self::try_task(&format!("{}-service-task", MoonbeamTask::NAME), async move {
+		let _greet = Self::try_task(&format!("{}-query-proof", MoonbeamTask::NAME), async move {
 			while let Some(message) = rx.recv().await {
 				match message {
 					MoonbeamTaskMessage::IpfsProof(AddProof {

@@ -19,11 +19,11 @@ pub struct AddProof {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Attestation {
-	user: Address,
-	c_type: H256,
-	program_hash: H256,
-	root_hash: H256,
-	is_passed: bool,
+	pub user: Address,
+	pub c_type: H256,
+	pub program_hash: H256,
+	pub root_hash: H256,
+	pub is_passed: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -31,6 +31,7 @@ pub enum MoonbeamTaskMessage {
 	ListenMoonbeam,
 	IpfsProof(AddProof),
 	KiltAttestation(Attestation),
+	SubmitVerification(Attestation),
 }
 
 impl Message<MoonbeamTaskBus> for MoonbeamTaskMessage {

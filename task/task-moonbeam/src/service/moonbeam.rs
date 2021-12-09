@@ -12,24 +12,18 @@ use lifeline::{Bus, Lifeline, Receiver, Service, Task};
 use primitives::utils::utils;
 use secp256k1::SecretKey;
 use server_traits::server::{config::Config, service::ServerService, task::ServerSand};
-use std::{
-	fs,
-	path::{Path, PathBuf},
-};
+use std::path::Path;
 use web3::{
 	contract::{Contract, Options},
-	ethabi::{ethereum_types::U256, RawLog},
-	futures::{future, StreamExt},
+	ethabi::RawLog,
+	futures::StreamExt,
 	signing::SecretKeyRef,
 	transports::WebSocket,
 	types::{
-		Address, BlockId, BlockNumber, Bytes, FilterBuilder, TransactionParameters, H160, H256,
-		U128,
+		FilterBuilder, H160, H256,
 	},
 	Web3,
 };
-
-use support_kilt_node::client::Kilt;
 
 #[derive(Debug)]
 pub struct MoonBeamService {
@@ -74,14 +68,9 @@ impl Service for MoonBeamService {
 						log::info!("moonbeam server is running")
 					},
 					//TODO: fill this later
-					_ => {},
+					MoonbeamTaskMessage::SubmitVerification(attestation) => {},
+					_ => continue,
 				}
-				log::debug!(
-					target: MoonbeamTask::NAME,
-					"[{}] recv a new task message: {:?}",
-					MoonbeamTask::NAME,
-					message
-				);
 			}
 			Ok(())
 		});
