@@ -9,7 +9,7 @@ pub async fn verifier_proof(
 	program_hash: &[u8; 32],
 	public_inputs: &[u128],
 	outputs: &[u128],
-) -> anyhow::Result<bool, anyhow::Error> {
+) -> anyhow::Result<bool> {
 	let body = ipfs_client.fetch_proof(proof_id).await?;
 	let proof = hex::decode(&body[0..body.len()]);
 	let mut res = false;
@@ -18,9 +18,10 @@ pub async fn verifier_proof(
 			let stark_proof = bincode::deserialize::<stark::StarkProof>(&proof);
 			match stark_proof {
 				Ok(stark_proof) => {
-					let is_success =
+					let maybe_success =
 						stark::verify(program_hash, public_inputs, outputs, &stark_proof);
-					res = if let Ok(r) = is_success {
+					
+					res = if let Ok(r) = maybe_success {
 						log::debug!(
 							"task name:{:?} , proofid {:?} stark verify true !",
 							&task_name,

@@ -1,27 +1,13 @@
 use crate::{
 	bus::MoonbeamTaskBus,
-	config::{ContractConfig, KiltConfig, MoonbeamConfig},
 	message::MoonbeamTaskMessage,
 	task::MoonbeamTask,
 };
-use array_bytes::hex2bytes_unchecked as mybytes;
 use component_ipfs::{client::IpfsClient, config::IpfsConfig};
 use lifeline::{Bus, Lifeline, Receiver, Service, Task};
 use primitives::utils::utils;
 use server_traits::server::{config::Config, service::ServerService, task::ServerSand};
-use std::path::{Path, PathBuf};
-use web3::{
-	contract::{Contract, Options},
-	ethabi::{ethereum_types::U256, RawLog},
-	futures::{future, StreamExt},
-	signing::SecretKeyRef,
-	transports::WebSocket,
-	types::{
-		Address, BlockId, BlockNumber, Bytes, FilterBuilder, TransactionParameters, H160, H256,
-		U128,
-	},
-	Web3,
-};
+use web3::types::{Address, H256};
 
 use crate::message::AddProof;
 
@@ -38,6 +24,7 @@ impl Service for IpfsService {
 
 	fn spawn(bus: &Self::Bus) -> Self::Lifeline {
 		let mut rx = bus.rx::<MoonbeamTaskMessage>()?;
+		let mut tx = bus.tx::<MoonbeamTaskMessage>()?;
 		let ipfs_config: IpfsConfig = Config::restore_with_namespace(MoonbeamTask::NAME, "ipfs")?;
 
 		let _greet = Self::try_task(&format!("{}-query-proof", MoonbeamTask::NAME), async move {
