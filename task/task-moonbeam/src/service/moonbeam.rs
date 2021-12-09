@@ -143,15 +143,12 @@ async fn run_subscribe(
 							match create_param {
 								Ok(create_param) => {
 									//distaff verifier
-									let res = utils::verifier_proof(
-										String::from("moonbeam"),
-										&ipfs_client,
-										&create_param.proof_id,
-										&create_param.program_hash,
-										&create_param.public_inputs,
-										&create_param.outputs,
-									)
-									.await?;
+									// let res = utils::verifier_proof(
+									// 	&create_param.program_hash,
+									// 	&create_param.public_inputs,
+									// 	&create_param.outputs,
+									// )
+									// .await?;
 
 									//kilt storage get
 									log::info!("kilt 0-----{:?}", kilt_url.clone());

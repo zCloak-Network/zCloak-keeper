@@ -1,56 +1,19 @@
-use component_ipfs::IpfsClient;
 use starksVM as stark;
-use std::str;
 
-pub async fn verifier_proof(
-	task_name: String,
-	ipfs_client: &IpfsClient,
-	proof_id: &[u8],
+pub fn verifier_proof(
 	program_hash: &[u8; 32],
+	body: Vec<u8>,
 	public_inputs: &[u128],
 	outputs: &[u128],
 ) -> anyhow::Result<bool> {
-	let body = ipfs_client.fetch_proof(proof_id).await?;
-	let proof = hex::decode(&body[0..body.len()]);
-	let mut res = false;
-	match proof {
-		Ok(proof) => {
-			let stark_proof = bincode::deserialize::<stark::StarkProof>(&proof);
-			match stark_proof {
-				Ok(stark_proof) => {
-					let maybe_success =
-						stark::verify(program_hash, public_inputs, outputs, &stark_proof);
-					
-					res = if let Ok(r) = maybe_success {
-						log::debug!(
-							"task name:{:?} , proofid {:?} stark verify true !",
-							&task_name,
-							str::from_utf8(&proof_id).unwrap()
-						);
-						r
-					} else {
-						log::debug!(
-							"task name:{:?} , proofid {:?} stark verify false !",
-							&task_name,
-							str::from_utf8(&proof_id).unwrap()
-						);
-						false
-					};
-				},
-				Err(e) => {
-					log::error!("task name:{:?} service , bincode deserialize got failed, exception stack is {:?}",&task_name, e);
-				},
-			}
-		},
-		Err(e) => {
-			log::error!(
-				"task name:{:?} , proof id:{:?} , hex decode the content failed which 
-                got from ipfs!, error stack is {:?}",
-				&task_name,
-				str::from_utf8(&proof_id).unwrap(),
-				e
-			);
-		},
+
+	let hexed_proof = hex::decode(&body[0..body.len()])?;
+	let stark_proof = bincode::deserialize::<stark::StarkProof>(&hexed_proof)?;
+
+	let maybe_result = stark::verify(program_hash, public_inputs, outputs, &stark_proof);
+
+	match maybe_result {
+		Ok(res) => Ok(res),
+		Err(e) => Err(anyhow::Error::msg(e))
 	}
-	return Ok(res)
 }

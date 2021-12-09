@@ -5,10 +5,8 @@ use crate::{
 };
 use component_ipfs::{client::IpfsClient, config::IpfsConfig};
 use lifeline::{Bus, Lifeline, Receiver, Service, Task};
-use primitives::utils::utils;
 use server_traits::server::{config::Config, service::ServerService, task::ServerSand};
-use web3::types::{Address, H256};
-
+use primitives::utils::utils::verifier_proof;
 use crate::message::AddProof;
 
 #[derive(Debug)]
@@ -42,14 +40,11 @@ impl Service for IpfsService {
 						let ipfs_url = ipfs_config.url_index.clone();
 						tokio::spawn(async move {
 							fetch_and_verify(
-								user,
 								ipfs_url,
-								c_type,
 								&program_hash,
 								&proof_cid,
 								&public_input,
-								&public_output,
-								expected_result,
+								&public_output
 							)
 							.await
 						});
@@ -68,29 +63,23 @@ impl Service for IpfsService {
 
 // TODO: move ipfs connection out of verify_proof
 async fn fetch_and_verify(
-	user: Address,
 	ipfs_url: String,
-	c_type: H256,
 	program_hash: &[u8; 32],
 	proof_cid: &[u8],
 	public_input: &[u128],
 	public_output: &[u128],
-	expect_result: bool,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<bool> {
 	let ipfs_client = IpfsClient::new(ipfs_url);
-
-	loop {
+	let mut res = false;
+	while let Ok(body) = ipfs_client.keep_fetch_proof(proof_cid).await {
 		//distaff verifier
-		let res = utils::verifier_proof(
-			String::from("moonbeam"),
-			&ipfs_client,
-			proof_cid,
+		res = verifier_proof(
 			program_hash,
+			body,
 			public_input,
-			public_output,
-		)
-		.await?;
+			public_output
+		)?;
 	}
 
-	Ok(())
+	Ok(res)
 }
