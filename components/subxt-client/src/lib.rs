@@ -3,7 +3,7 @@
 // 	events::Raw, Client, ClientBuilder, EventTypeRegistry, EventsDecoder, RawEvent, Runtime,
 // };
 
-// pub mod error;
+pub mod error;
 
 // pub struct SubstrateEvents<T: Runtime> {
 // 	pub decoder: EventsDecoder<T>,

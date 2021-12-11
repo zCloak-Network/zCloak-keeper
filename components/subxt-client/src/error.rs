@@ -17,12 +17,10 @@ pub enum Error {
 	#[error("Failed to build SecretKey from authority's private key")]
 	FailedToBuildSecretKey(#[from] secp256k1::Error),
 
-	#[error("Failed to connect ethereum rpc http endpoint")]
-	CannotConnectToWeb3(#[from] web3::Error),
-
-	#[error(transparent)]
-	SubxtError(#[from] substrate_subxt::Error),
-
+	// #[error("Failed to connect ethereum rpc http endpoint")]
+	// CannotConnectToWeb3(#[from] web3::Error),
+	// #[error(transparent)]
+	// SubxtError(#[from] substrate_subxt::Error),
 	#[error("No signer seed set for authority, please check your config.toml")]
 	NoAuthoritySignerSeed,
 

@@ -6,7 +6,6 @@ pub fn verifier_proof(
 	public_inputs: &[u128],
 	outputs: &[u128],
 ) -> anyhow::Result<bool> {
-
 	let hexed_proof = hex::decode(&body[0..body.len()])?;
 	let stark_proof = bincode::deserialize::<stark::StarkProof>(&hexed_proof)?;
 
@@ -14,6 +13,6 @@ pub fn verifier_proof(
 
 	match maybe_result {
 		Ok(res) => Ok(res),
-		Err(e) => Err(anyhow::Error::msg(e))
+		Err(e) => Err(anyhow::Error::msg(e)),
 	}
 }

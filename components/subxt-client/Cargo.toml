@@ -31,7 +31,6 @@ jsonrpsee-ws-client = { version = "0.4.1", default-features = false }
 jsonrpsee-http-client = { version = "0.4.1", default-features = false }
 
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive", "full"] }
-web3 = { version = "0.16.0", git = "https://github.com/wuminzhe/rust-web3.git", branch = "master", features = ["signing"] }
 secp256k1 = { version = "0.20", features = ["recovery"] }
 
 subxt = { git = "https://github.com/byteflyfunny/substrate-subxt.git", branch = "jay_subxt" }

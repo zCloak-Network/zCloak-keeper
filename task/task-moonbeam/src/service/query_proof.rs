@@ -1,13 +1,12 @@
 use crate::{
 	bus::MoonbeamTaskBus,
-	message::MoonbeamTaskMessage,
+	message::{AddProof, MoonbeamTaskMessage},
 	task::MoonbeamTask,
 };
 use component_ipfs::{client::IpfsClient, config::IpfsConfig};
 use lifeline::{Bus, Lifeline, Receiver, Service, Task};
-use server_traits::server::{config::Config, service::ServerService, task::ServerSand};
 use primitives::utils::utils::verifier_proof;
-use crate::message::AddProof;
+use server_traits::server::{config::Config, service::ServerService, task::ServerSand};
 
 #[derive(Debug)]
 pub struct IpfsService {
@@ -27,33 +26,33 @@ impl Service for IpfsService {
 
 		let _greet = Self::try_task(&format!("{}-query-proof", MoonbeamTask::NAME), async move {
 			while let Some(message) = rx.recv().await {
-				match message {
-					MoonbeamTaskMessage::IpfsProof(AddProof {
-						user,
-						c_type,
-						program_hash,
-						public_input,
-						public_output,
-						proof_cid,
-						expected_result,
-					}) => {
-						let ipfs_url = ipfs_config.url_index.clone();
-						tokio::spawn(async move {
-							fetch_and_verify(
-								ipfs_url,
-								&program_hash,
-								&proof_cid,
-								&public_input,
-								&public_output
-							)
-							.await
-						});
-						log::info!("moonbeam server is running")
-					},
-
-					// TODO: handle this
-					_ => {},
-				}
+				// match message {
+				// 	MoonbeamTaskMessage::IpfsProof(AddProof {
+				// 		user,
+				// 		c_type,
+				// 		program_hash,
+				// 		public_input,
+				// 		public_output,
+				// 		proof_cid,
+				// 		expected_result,
+				// 	}) => {
+				// 		let ipfs_url = ipfs_config.url_index.clone();
+				// 		tokio::spawn(async move {
+				// 			fetch_and_verify(
+				// 				ipfs_url,
+				// 				&program_hash,
+				// 				&proof_cid,
+				// 				&public_input,
+				// 				&public_output,
+				// 			)
+				// 			.await
+				// 		});
+				// 		log::info!("moonbeam server is running")
+				// 	},
+				//
+				// 	// TODO: handle this
+				// 	_ => {},
+				// }
 			}
 			Ok(())
 		});
@@ -73,12 +72,7 @@ async fn fetch_and_verify(
 	let mut res = false;
 	while let Ok(body) = ipfs_client.keep_fetch_proof(proof_cid).await {
 		//distaff verifier
-		res = verifier_proof(
-			program_hash,
-			body,
-			public_input,
-			public_output
-		)?;
+		res = verifier_proof(program_hash, body, public_input, public_output)?;
 	}
 
 	Ok(res)

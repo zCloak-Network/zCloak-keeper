@@ -28,10 +28,10 @@ pub struct Attestation {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum MoonbeamTaskMessage {
-	ListenMoonbeam,
-	IpfsProof(AddProof),
-	KiltAttestation(Attestation),
-	SubmitVerification(Attestation),
+	Start, /* ListenMoonbeam,
+	        * IpfsProof(AddProof),
+	        * KiltAttestation(Attestation),
+	        * SubmitVerification(Attestation) */
 }
 
 impl Message<MoonbeamTaskBus> for MoonbeamTaskMessage {

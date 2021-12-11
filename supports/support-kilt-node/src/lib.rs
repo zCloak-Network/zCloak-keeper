@@ -1,8 +1,7 @@
 use codec::{Decode, Encode};
+use primitive_types::H256;
 use scale_info::TypeInfo;
 use subxt::ClientBuilder;
-use primitive_types::H256; 
-
 
 #[derive(Clone, Copy, Decode, Debug, Encode, Eq, Ord, PartialEq, PartialOrd, TypeInfo)]
 pub enum DidEncryptionKey {
@@ -40,12 +39,7 @@ const _: () = {
 	}
 };
 
-
-pub async fn query_attestation(
-	url: String,
-	root_hash: H256,
-) -> anyhow::Result<bool> {
-
+pub async fn query_attestation(url: String, root_hash: H256) -> anyhow::Result<bool> {
 	let api = ClientBuilder::new()
 		.set_url(url)
 		.build()
@@ -53,11 +47,10 @@ pub async fn query_attestation(
 		.to_runtime_api::<kilt::RuntimeApi<kilt::DefaultConfig>>();
 
 	log::info!("------- query attestation ");
-	let maybe_attestation_details = api.storage().attestation().attestations(root_hash, None).await?;
+	let maybe_attestation_details =
+		api.storage().attestation().attestations(root_hash, None).await?;
 	// not revoked by kyc agent
 	let is_valid = maybe_attestation_details.map_or_else(|| false, |detail| !detail.revoked);
 
 	Ok(is_valid)
-		
 }
-

@@ -14,14 +14,14 @@ impl IpfsClient {
 		let url = url_index.to_owned() + str::from_utf8(proofid).unwrap();
 
 		log::debug!("file which on ipfs, url is {:?}", url);
-	
+
 		let mut body = String::new();
 
 		loop {
 			let maybe_response = reqwest::get(&url).await;
 			if let Ok(response) = maybe_response {
 				body = response.text().await?;
-				break;
+				break
 			}
 		}
 

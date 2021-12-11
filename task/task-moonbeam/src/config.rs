@@ -48,9 +48,9 @@ impl ServerConfig for MoonbeamConfig {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ContractConfig {
 	pub address: String,
-	pub topics: Vec<String>,
+	// pub topics: Vec<String>,
 	pub password: String,
-	pub uuid: String,
+	pub keystore: String,
 }
 
 impl ServerConfig for ContractConfig {
@@ -61,9 +61,9 @@ impl ServerConfig for ContractConfig {
 	fn template() -> Self {
 		Self {
 			address: "0x...".to_string(),
-			topics: vec!["0x...".to_string()],
+			// topics: vec!["0x...".to_string()],
 			password: "".to_string(),
-			uuid: "".to_string(),
+			keystore: "".to_string(),
 		}
 	}
 }
