@@ -5,7 +5,7 @@ use crate::{
 };
 use component_ipfs::{client::IpfsClient, config::IpfsConfig};
 use lifeline::{Bus, Lifeline, Receiver, Service, Task};
-use primitives::utils::utils::verifier_proof;
+use primitives::utils::utils::verify_proof;
 use server_traits::server::{config::Config, service::ServerService, task::ServerSand};
 
 #[derive(Debug)]
@@ -60,20 +60,20 @@ impl Service for IpfsService {
 	}
 }
 
-// TODO: move ipfs connection out of verify_proof
-async fn fetch_and_verify(
-	ipfs_url: String,
-	program_hash: &[u8; 32],
-	proof_cid: &[u8],
-	public_input: &[u128],
-	public_output: &[u128],
-) -> anyhow::Result<bool> {
-	let ipfs_client = IpfsClient::new(ipfs_url);
-	let mut res = false;
-	while let Ok(body) = ipfs_client.keep_fetch_proof(proof_cid).await {
-		//distaff verifier
-		res = verifier_proof(program_hash, body, public_input, public_output)?;
-	}
-
-	Ok(res)
-}
+// // TODO: move ipfs connection out of verify_proof
+// async fn fetch_and_verify(
+// 	ipfs_url: String,
+// 	program_hash: &[u8; 32],
+// 	proof_cid: &[u8],
+// 	public_input: &[u128],
+// 	public_output: &[u128],
+// ) -> anyhow::Result<bool> {
+// 	let ipfs_client = IpfsClient::new(ipfs_url);
+// 	let mut res = false;
+// 	while let Ok(body) = ipfs_client.keep_fetch_proof(proof_cid).await {
+// 		//distaff verifier
+// 		res = verifier_proof(program_hash, body, public_input, public_output)?;
+// 	}
+//
+// 	Ok(res)
+// }

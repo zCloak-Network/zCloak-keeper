@@ -2,7 +2,8 @@
 url = "ws://127.0.0.1:9933"
 
 [ipfs]
-url_index = "https://ipfs.infura.io:5001/api/v0/cat?arg="
+#url_index = "https://ipfs.infura.io:5001/api/v0/cat?arg="
+host = "ipfs.infura.io:5001"
 
 [contract]
 address = "0x970951a12F975E6762482ACA81E57D5A2A4e73F4"

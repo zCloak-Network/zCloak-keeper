@@ -13,6 +13,12 @@ pub enum Error {
 
 	#[error("Invalid Ethereum Address: {0}")]
 	InvalidEthereumAddress(String),
+
+	#[error("Fetch IPFS Error, err: {0}")]
+	IpfsError(#[from] component_ipfs::Error),
+
+	#[error("Unexpect Error, err: {0}")]
+	OtherError(#[from] anyhow::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

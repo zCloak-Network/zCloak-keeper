@@ -430,6 +430,8 @@ dependencies = [
  "reqwest",
  "serde 1.0.130",
  "server-traits",
+ "thiserror",
+ "url",
 ]
 
 [[package]]
