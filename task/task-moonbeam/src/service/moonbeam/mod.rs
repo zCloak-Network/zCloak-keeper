@@ -13,6 +13,8 @@ use server_traits::server::{config::Config, service::ServerService, task::Server
 // use secp256k1::SecretKey;
 
 mod run;
+#[cfg(test)]
+mod tests;
 
 #[derive(Debug)]
 pub struct MoonBeamService {

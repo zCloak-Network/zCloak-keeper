@@ -57,7 +57,7 @@ pub async fn run_worker(
 	}
 }
 
-mod scan_moonbeam {
+pub mod scan_moonbeam {
 	use super::*;
 	use web3::{
 		api::Eth,
@@ -79,15 +79,16 @@ mod scan_moonbeam {
 	pub type Bytes32 = [u8; 32];
 
 	#[derive(Debug, Default)]
+	#[allow(dead_code)]
 	pub struct ProofEvent {
-		pub(super) data_owner: Address,
-		pub(super) kilt_address: Bytes32,
-		pub(super) c_type: Bytes32,
-		pub(super) program_hash: Bytes32,
-		pub(super) field_name: String,
-		pub(super) proof_cid: String,
-		pub(super) root_hash: Bytes32,
-		pub(super) expect_result: bool,
+		pub(crate) data_owner: Address,
+		pub(crate) kilt_address: Bytes32,
+		pub(crate) c_type: Bytes32,
+		pub(crate) program_hash: Bytes32,
+		pub(crate) field_name: String,
+		pub(crate) proof_cid: String,
+		pub(crate) root_hash: Bytes32,
+		pub(crate) expect_result: bool,
 	}
 	impl ProofEvent {
 		pub fn proof_cid(&self) -> &str {
@@ -101,11 +102,19 @@ mod scan_moonbeam {
 			vec![r]
 		}
 		pub fn outputs(&self) -> Vec<u128> {
+			let mut outputs = vec![];
+			let mut mid: [u8; 16] = Default::default();
+			mid.copy_from_slice(&self.root_hash[0..16]);
+			outputs.push(u128::from_be_bytes(mid));
+			mid.copy_from_slice(&self.root_hash[16..]);
+			outputs.push(u128::from_be_bytes(mid));
 			if self.expect_result {
-				vec![1]
+				outputs.push(1)
 			} else {
-				vec![0]
+				outputs.push(0)
 			}
+
+			outputs
 		}
 		pub fn program_hash(&self) -> Bytes32 {
 			self.program_hash
@@ -258,7 +267,7 @@ mod scan_moonbeam {
 	}
 }
 
-mod query_ipfs {
+pub mod query_ipfs {
 	use super::{scan_moonbeam::ProofEvent, *};
 	use crate::service::moonbeam::run::scan_moonbeam::Bytes32;
 	use primitives::utils::utils::verify_proof;
@@ -323,7 +332,7 @@ mod query_ipfs {
 		}
 	}
 
-	fn verify(p: &ProofEvent, context: &[u8]) -> Result<bool> {
+	pub(crate) fn verify(p: &ProofEvent, context: &[u8]) -> Result<bool> {
 		let inputs = p.public_inputs();
 		let outputs = p.outputs();
 		let program_hash = p.program_hash();
@@ -332,7 +341,7 @@ mod query_ipfs {
 	}
 }
 
-mod query_kilt {
+pub mod query_kilt {
 	use super::*;
 	use crate::service::moonbeam::run::query_ipfs::VerifyResult;
 	use support_kilt_node::query_attestation;
@@ -356,7 +365,7 @@ mod query_kilt {
 	}
 }
 
-mod submit_moonbeam {
+pub mod submit_moonbeam {
 	use super::*;
 	use crate::service::moonbeam::run::query_ipfs::VerifyResult;
 	use secp256k1::SecretKey;
