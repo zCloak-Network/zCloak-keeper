@@ -47,8 +47,36 @@ pub async fn query_attestation(url: String, root_hash: H256) -> anyhow::Result<b
 		.to_runtime_api::<kilt::RuntimeApi<kilt::DefaultConfig>>();
 
 	log::info!("------- query attestation ");
-	let maybe_attestation_details =
-		api.storage().attestation().attestations(root_hash, None).await?;
+
+	let mut times = 0;
+	const MAX_RETRY_TIMES: usize = 5;
+	let maybe_attestation_details = loop {
+		match api.storage().attestation().attestations(root_hash, None).await {
+			Ok(details) => {
+				break details
+			},
+			Err(e) => {
+				match e {
+					subxt::Error::Rpc(ref rpc_err) => match rpc_err {
+						jsonrpsee_types::Error::RequestTimeout =>
+							if times < MAX_RETRY_TIMES {
+								times += 1;
+								log::warn!(
+									"query kilt storage timeout, retry {:}/{:}",
+									times,
+									MAX_RETRY_TIMES
+								);
+								continue
+							},
+						_ => {},
+					},
+					_ => {},
+				}
+				return Err(e)?
+			},
+		}
+	};
+
 	// not revoked by kyc agent
 	let is_valid = maybe_attestation_details.map_or_else(|| false, |detail| !detail.revoked);
 

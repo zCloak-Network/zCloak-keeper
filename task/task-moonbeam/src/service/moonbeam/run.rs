@@ -329,3 +329,7 @@ mod query_ipfs {
 		Ok(r)
 	}
 }
+
+mod query_kilt {
+	pub async fn query_attestation() {}
+}

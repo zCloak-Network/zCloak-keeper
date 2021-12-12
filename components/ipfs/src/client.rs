@@ -20,15 +20,12 @@ impl IpfsClient {
 
 		log::debug!("file which on ipfs, url is {:?}", url);
 
-		let mut body = String::new();
-
 		let mut times = 0;
-		loop {
+		let body = loop {
 			let maybe_response = reqwest::get(url.clone()).await;
 			match maybe_response {
 				Ok(r) => {
-					body = r.text().await?;
-					break
+					break r.text().await?
 				},
 				Err(e) => {
 					if e.is_timeout() && times < MAX_RETRY_TIMES {
@@ -40,7 +37,7 @@ impl IpfsClient {
 					Err(e)?
 				},
 			}
-		}
+		};
 
 		let body = body.as_bytes().to_owned();
 		Ok(body)
