@@ -181,7 +181,7 @@ pub mod scan_moonbeam {
 		let span: U64 = SCAN_SPAN.into();
 		let end = if start + span > best { best } else { start + span };
 
-		log::info!("try to can moonbeam log from block [{:}] - [{:}] | best:{:}", start, end, best);
+		log::info!("try to scan moonbeam log from block [{:}] - [{:}] | best:{:}", start, end, best);
 		let r = events::<_, ProofEventType>(
 			web3.eth(),
 			contract,
