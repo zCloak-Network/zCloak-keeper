@@ -1,11 +1,6 @@
-use crate::{
-	bus::MoonbeamTaskBus,
-	message::{AddProof, MoonbeamTaskMessage},
-	task::MoonbeamTask,
-};
-use component_ipfs::{client::IpfsClient, config::IpfsConfig};
+use crate::{bus::MoonbeamTaskBus, message::MoonbeamTaskMessage, task::MoonbeamTask};
+use component_ipfs::config::IpfsConfig;
 use lifeline::{Bus, Lifeline, Receiver, Service, Task};
-use primitives::utils::utils::verify_proof;
 use server_traits::server::{config::Config, service::ServerService, task::ServerSand};
 
 #[derive(Debug)]
@@ -21,7 +16,7 @@ impl Service for IpfsService {
 
 	fn spawn(bus: &Self::Bus) -> Self::Lifeline {
 		let mut rx = bus.rx::<MoonbeamTaskMessage>()?;
-		let mut tx = bus.tx::<MoonbeamTaskMessage>()?;
+		let tx = bus.tx::<MoonbeamTaskMessage>()?;
 		let ipfs_config: IpfsConfig = Config::restore_with_namespace(MoonbeamTask::NAME, "ipfs")?;
 
 		let _greet = Self::try_task(&format!("{}-query-proof", MoonbeamTask::NAME), async move {

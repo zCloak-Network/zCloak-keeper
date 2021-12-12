@@ -50,7 +50,7 @@ impl MoonbeamTask {
 		stack.spawn_service::<MoonBeamService>()?;
 
 		let mut sender = stack.bus().tx::<MoonbeamTaskMessage>()?;
-		sender.send(MoonbeamTaskMessage::Start).await?;
+		sender.send(MoonbeamTaskMessage { start_block: None }).await?;
 		Ok(Self { stack })
 	}
 }

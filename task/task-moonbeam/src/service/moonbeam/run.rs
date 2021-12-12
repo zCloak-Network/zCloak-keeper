@@ -1,36 +1,41 @@
 use component_ipfs::{IpfsClient, IpfsConfig};
 use std::collections::BTreeMap;
-use web3::types::U64;
+use web3::{signing::SecretKeyRef, types::U64};
 
 use crate::{
-	config::{ContractConfig, KiltConfig, MoonbeamConfig},
+	config::{KiltConfig, MoonbeamConfig},
 	error::{Error, Result},
 };
 
 pub async fn run_worker(
-	start_number: Option<u64>,
+	start_number: Option<U64>,
 	moonbeam: MoonbeamConfig,
-	contract: ContractConfig,
 	ipfs: IpfsConfig,
 	kilt: KiltConfig,
-) -> Result<()> {
-	let web3 = scan_moonbeam::web3eth(&moonbeam)?;
-	let proof_contract = scan_moonbeam::kilt_proofs_contract(&web3, &contract)?;
+) -> std::result::Result<(), (U64, Error)> {
+	let web3 = scan_moonbeam::web3eth(&moonbeam).map_err(|e| (U64::zero(), e.into()))?;
+	let proof_contract = scan_moonbeam::kilt_proofs_contract(&web3, &moonbeam)
+		.map_err(|e| (U64::zero(), e.into()))?;
 	let ipfs = IpfsClient::new(ipfs.host);
+	// todo get worker key from moonbeam config seed;
+	let prvk = secp256k1::key::ONE_KEY;
+	let worker_key_ref = SecretKeyRef::new(&prvk);
 
 	// if user not set start_number, then use best number as the start number
-	let mut start = if let Some(s) = start_number.map(|n| n.into()) {
+	let mut start = if let Some(s) = start_number {
 		s
 	} else {
-		web3.eth().block_number().await?
+		web3.eth().block_number().await.map_err(|e| (U64::zero(), e.into()))?
 	};
 
 	loop {
 		// 1. scan moonbeam events
-		let (res, end) = scan_moonbeam::scan_events(start, &web3, &proof_contract).await?;
+		let (res, end) = scan_moonbeam::scan_events(start, &web3, &proof_contract)
+			.await
+			.map_err(|e| (start, e.into()))?;
 		start = end;
 		if res.is_empty() {
-			if start == web3.eth().block_number().await? {
+			if start == web3.eth().block_number().await.map_err(|e| (start, e.into()))? {
 				// if current start is the best number, then sleep the block duration.
 				use tokio::time::{sleep, Duration};
 				sleep(Duration::from_secs(scan_moonbeam::MOONBEAM_BLOCK_DURATION)).await;
@@ -39,35 +44,20 @@ pub async fn run_worker(
 		}
 
 		// 2. query ipfs and verify cid context
-		let r = match query_ipfs::query_and_verify(&ipfs, res).await {
-			Ok(r) => r,
-			Err((number, e)) => {
-				// move next start to the error number
-				// TODO add more log to this.
-				start = number;
-				return Err(e)?
-			},
-		};
+		let r = query_ipfs::query_and_verify(&ipfs, res).await?;
 
 		// 3. query kilt
-		let res = match query_kilt::filter(&kilt.url, r).await {
-			Ok(r) => r,
-			Err((number, e)) => {
-				// move next start to the error number
-				// TODO add more log to this.
-				start = number;
-				return Err(e)?
-			},
-		};
+		let res = query_kilt::filter(&kilt.url, r).await?;
 		// 4. submit tx
+		submit_moonbeam::submit_tx(&proof_contract, *worker_key_ref, res)
+			.await
+			.map_err(|e| (start, e.into()))?;
+		log::info!("finish batch task");
 	}
-	Ok(())
 }
 
 mod scan_moonbeam {
 	use super::*;
-	use log::info;
-	use starksVM::OpCode::Add;
 	use web3::{
 		api::Eth,
 		contract::{
@@ -76,7 +66,7 @@ mod scan_moonbeam {
 		},
 		ethabi,
 		transports::Http,
-		types::{Address, BlockNumber, FilterBuilder, Log, U256, U64},
+		types::{Address, BlockNumber, FilterBuilder, Log, U64},
 		Error as Web3Err, Transport, Web3,
 	};
 
@@ -144,10 +134,13 @@ mod scan_moonbeam {
 
 	pub fn kilt_proofs_contract(
 		web3: &Web3<Http>,
-		config: &ContractConfig,
+		config: &MoonbeamConfig,
 	) -> Result<Contract<Http>> {
-		let addr =
-			if config.address.starts_with("0x") { &config.address[2..] } else { &config.address };
+		let addr = if config.contract.starts_with("0x") {
+			&config.contract[2..]
+		} else {
+			&config.contract
+		};
 		let hex_res =
 			hex::decode(addr).map_err(|e| Error::InvalidEthereumAddress(format!("{:}", e)))?;
 		if hex_res.len() != 20 {
@@ -343,8 +336,6 @@ mod query_kilt {
 	use crate::service::moonbeam::run::query_ipfs::VerifyResult;
 	use support_kilt_node::query_attestation;
 
-	pub struct QueryResult {}
-
 	pub async fn filter(
 		url: &str,
 		result: Vec<VerifyResult>,
@@ -367,8 +358,51 @@ mod query_kilt {
 mod submit_moonbeam {
 	use super::*;
 	use crate::service::moonbeam::run::query_ipfs::VerifyResult;
-	use web3::{contract::Contract, transports::Http};
-	pub async fn submit_tx(contract: &Contract<Http>, res: Vec<VerifyResult>) -> Result<()> {
+	use secp256k1::SecretKey;
+	use web3::{
+		contract::{Contract, Options},
+		signing::Key,
+		transports::Http,
+	};
+
+	pub const TRANSACTION_CONFIRMATIONS: usize = 2;
+
+	pub async fn submit_tx(
+		contract: &Contract<Http>,
+		worker: SecretKey,
+		res: Vec<VerifyResult>,
+	) -> Result<()> {
+		let key_ref = SecretKeyRef::new(&worker);
+		let worker_address = key_ref.address();
+		for v in res {
+			let r: bool = contract
+				.query(
+					"hasSubmitted",
+					(v.data_owner, worker_address, v.root_hash, v.c_type, v.program_hash),
+					None,
+					Options::default(),
+					None,
+				)
+				.await?;
+			if !r {
+				let r = contract
+					.signed_call_with_confirmations(
+						"addVerification",
+						(v.data_owner, v.root_hash, v.c_type, v.program_hash, v.is_passed),
+						Options::default(),
+						TRANSACTION_CONFIRMATIONS,
+						&worker,
+					)
+					.await?; // TODO handle result for some error
+				log::info!(
+					"[moonbeam] submit verification|tx:{:}|data owner:{:}|root_hash:{:}",
+					r.transaction_hash,
+					v.data_owner,
+					hex::encode(v.root_hash)
+				);
+			}
+		}
+
 		Ok(())
 	}
 }
