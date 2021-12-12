@@ -50,8 +50,16 @@ pub async fn run_worker(
 		};
 
 		// 3. query kilt
-
-		// 4 submit tx
+		let res = match query_kilt::filter(&kilt.url, r).await {
+			Ok(r) => r,
+			Err((number, e)) => {
+				// move next start to the error number
+				// TODO add more log to this.
+				start = number;
+				return Err(e)?
+			},
+		};
+		// 4. submit tx
 	}
 	Ok(())
 }
@@ -301,12 +309,12 @@ mod query_ipfs {
 	}
 
 	pub struct VerifyResult {
-		number: U64,
-		data_owner: Address,
-		root_hash: Bytes32,
-		c_type: Bytes32,
-		program_hash: Bytes32,
-		is_passed: bool,
+		pub(super) number: U64,
+		pub(super) data_owner: Address,
+		pub(super) root_hash: Bytes32,
+		pub(super) c_type: Bytes32,
+		pub(super) program_hash: Bytes32,
+		pub(super) is_passed: bool,
 	}
 	impl VerifyResult {
 		pub fn new_from_proof_event(p: ProofEvent, number: U64, passed: bool) -> Self {
@@ -331,5 +339,36 @@ mod query_ipfs {
 }
 
 mod query_kilt {
-	pub async fn query_attestation() {}
+	use super::*;
+	use crate::service::moonbeam::run::query_ipfs::VerifyResult;
+	use support_kilt_node::query_attestation;
+
+	pub struct QueryResult {}
+
+	pub async fn filter(
+		url: &str,
+		result: Vec<VerifyResult>,
+	) -> std::result::Result<Vec<VerifyResult>, (U64, Error)> {
+		let mut v = vec![];
+		for i in result {
+			let r = query_attestation(url, i.root_hash.into())
+				.await
+				.map_err(|e| (i.number, e.into()))?;
+			if r {
+				v.push(i)
+			} else {
+				log::error!("[kilt] attestaion is not valid for this root_hash|root_hash:{:}|data owner:{:}|number:{:}", hex::encode(i.root_hash), hex::encode(i.data_owner.0), i.number);
+			}
+		}
+		Ok(v)
+	}
+}
+
+mod submit_moonbeam {
+	use super::*;
+	use crate::service::moonbeam::run::query_ipfs::VerifyResult;
+	use web3::{contract::Contract, transports::Http};
+	pub async fn submit_tx(contract: &Contract<Http>, res: Vec<VerifyResult>) -> Result<()> {
+		Ok(())
+	}
 }

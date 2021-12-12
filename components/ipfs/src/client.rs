@@ -24,9 +24,7 @@ impl IpfsClient {
 		let body = loop {
 			let maybe_response = reqwest::get(url.clone()).await;
 			match maybe_response {
-				Ok(r) => {
-					break r.text().await?
-				},
+				Ok(r) => break r.text().await?,
 				Err(e) => {
 					if e.is_timeout() && times < MAX_RETRY_TIMES {
 						log::warn!("ipfs client fetch data timeout! retry: {:} ...", times + 1);

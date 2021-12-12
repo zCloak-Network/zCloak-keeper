@@ -39,7 +39,7 @@ const _: () = {
 	}
 };
 
-pub async fn query_attestation(url: String, root_hash: H256) -> anyhow::Result<bool> {
+pub async fn query_attestation(url: &str, root_hash: H256) -> anyhow::Result<bool> {
 	let api = ClientBuilder::new()
 		.set_url(url)
 		.build()
@@ -52,9 +52,7 @@ pub async fn query_attestation(url: String, root_hash: H256) -> anyhow::Result<b
 	const MAX_RETRY_TIMES: usize = 5;
 	let maybe_attestation_details = loop {
 		match api.storage().attestation().attestations(root_hash, None).await {
-			Ok(details) => {
-				break details
-			},
+			Ok(details) => break details,
 			Err(e) => {
 				match e {
 					subxt::Error::Rpc(ref rpc_err) => match rpc_err {
