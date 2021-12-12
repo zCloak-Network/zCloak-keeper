@@ -165,6 +165,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
+name = "b2sum-rs"
+version = "0.1.0"
+source = "git+https://github.com/jonathanxuu/b2sum-rs.git#4e8692084b4b385cf00633a92b12e4297be266e1"
+dependencies = [
+ "blake2-rfc",
+ "hex",
+]
+
+[[package]]
 name = "backtrace"
 version = "0.3.63"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -243,6 +252,17 @@ dependencies = [
  "radium",
  "tap",
  "wyz",
+]
+
+[[package]]
+name = "blake2"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a4e37d16930f5459780f5621038b6382b9bb37c19016f39fb6b5808d831f174"
+dependencies = [
+ "crypto-mac 0.8.0",
+ "digest 0.9.0",
+ "opaque-debug 0.3.0",
 ]
 
 [[package]]
@@ -1465,6 +1485,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "iota-crypto"
+version = "0.9.1"
+source = "git+https://github.com/iotaledger/crypto.rs?branch=dev#752321d556ab7f391d7f3afb98b71adeef6d23b3"
+dependencies = [
+ "blake2",
+ "digest 0.9.0",
+]
+
+[[package]]
 name = "ipnet"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2298,7 +2327,7 @@ dependencies = [
  "serde 1.0.130",
  "serde_json",
  "server-traits",
- "starksVM",
+ "starksVM 0.1.0 (git+https://github.com/dejavukong/distaff.git?branch=lib)",
  "subxt",
  "subxt-macro",
  "thiserror",
@@ -3848,6 +3877,36 @@ dependencies = [
 [[package]]
 name = "starksVM"
 version = "0.1.0"
+source = "git+https://github.com/dejavukong/distaff.git?branch=lib#af58b63d1eede0f81af1fb31371da0664de834fc"
+dependencies = [
+ "b2sum-rs",
+ "bincode",
+ "blake3",
+ "console_error_panic_hook",
+ "console_log",
+ "crossbeam-utils",
+ "env_logger 0.7.1",
+ "getrandom 0.2.3",
+ "hashbrown 0.1.8",
+ "hex",
+ "iota-crypto",
+ "log",
+ "parity-scale-codec",
+ "rand 0.7.3",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.3",
+ "serde 1.0.130",
+ "serde_json",
+ "sha2 0.9.8",
+ "sha3 0.8.2",
+ "sp-io 4.0.0-dev (git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.10)",
+ "sp-std 4.0.0-dev (git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.10)",
+ "web-sys",
+]
+
+[[package]]
+name = "starksVM"
+version = "0.1.0"
 source = "git+https://github.com/byteflyfunny/starks-verifier.git#bb34920cc1d821615f288af9d46be7742a55a8f4"
 dependencies = [
  "bincode",
@@ -4083,7 +4142,7 @@ dependencies = [
  "server-traits",
  "sp-keyring 4.0.0-dev (git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.10)",
  "sp-runtime-interface 4.0.0-dev (git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.10)",
- "starksVM",
+ "starksVM 0.1.0 (git+https://github.com/byteflyfunny/starks-verifier.git)",
  "subxt",
  "subxt-macro",
 ]
@@ -4157,7 +4216,7 @@ dependencies = [
  "serde 1.0.130",
  "serde_json",
  "server-traits",
- "starksVM",
+ "starksVM 0.1.0 (git+https://github.com/byteflyfunny/starks-verifier.git)",
  "subxt",
  "support-kilt-node",
  "task-management",

@@ -3,7 +3,7 @@ use server_traits::server::config::ServerConfig;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct IpfsConfig {
-	pub host: String,
+	pub base_url: String,
 }
 
 impl ServerConfig for IpfsConfig {
@@ -12,6 +12,6 @@ impl ServerConfig for IpfsConfig {
 	}
 
 	fn template() -> Self {
-		Self { host: "ipfs.infura.io:5001".to_string() }
+		Self { base_url: "ipfs.infura.io:5001".to_string() }
 	}
 }

@@ -16,7 +16,7 @@ pub async fn run_worker(
 	let web3 = scan_moonbeam::web3eth(&moonbeam).map_err(|e| (U64::zero(), e.into()))?;
 	let proof_contract = scan_moonbeam::kilt_proofs_contract(&web3, &moonbeam)
 		.map_err(|e| (U64::zero(), e.into()))?;
-	let ipfs = IpfsClient::new(ipfs.host);
+	let ipfs = IpfsClient::new(ipfs.base_url);
 	// todo get worker key from moonbeam config seed;
 	// let prvk = secp256k1::key::ONE_KEY;
 	let moonbeam_worker_pri = secp256k1::SecretKey::from_str(&moonbeam.private_key)
@@ -282,6 +282,7 @@ pub mod query_ipfs {
 		ipfs: &IpfsClient,
 		input: BTreeMap<U64, Vec<ProofEvent>>,
 	) -> std::result::Result<Vec<VerifyResult>, (U64, Error)> {
+		log::info!("[IPFS] start querying ipfs");
 		let mut ret = vec![];
 		for (number, proofs) in input {
 			for proof in proofs {
@@ -289,7 +290,7 @@ pub mod query_ipfs {
 					.keep_fetch_proof(proof.proof_cid())
 					.await
 					.map_err(|e| (number, e.into()))?;
-
+				log::info!("[IPFS] ipfs proof fetched and the content length is {}", cid_context.len());
 				// if verify meet error, do not throw it.
 				let result = match verify(&proof, &cid_context) {
 					Ok(r) => {

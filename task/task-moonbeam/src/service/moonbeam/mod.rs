@@ -9,9 +9,6 @@ use component_ipfs::config::IpfsConfig;
 use lifeline::{Bus, Lifeline, Receiver, Sender, Service, Task};
 use server_traits::server::{config::Config, service::ServerService, task::ServerSand};
 
-// use eth_keystore::decrypt_key;
-// use secp256k1::SecretKey;
-
 mod run;
 #[cfg(test)]
 mod tests;
