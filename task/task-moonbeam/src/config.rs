@@ -31,7 +31,7 @@ impl MoonbeamTaskConfig {
 pub struct MoonbeamConfig {
 	pub url: String,
 	pub contract: String,
-	pub seed: String,
+	pub private_key: String,
 }
 
 impl ServerConfig for MoonbeamConfig {
@@ -43,7 +43,7 @@ impl ServerConfig for MoonbeamConfig {
 		Self {
 			url: "wss://127.0.0.1:9933".to_string(),
 			contract: "".to_string(),
-			seed: "".to_string(),
+			private_key: "".to_string(),
 		}
 	}
 }

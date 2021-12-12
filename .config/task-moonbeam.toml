@@ -1,7 +1,7 @@
 [moonbeam]
 url = "ws://127.0.0.1:9933"
 contract = "0x970951a12F975E6762482ACA81E57D5A2A4e73F4"
-seed = ""
+private_key = ""
 
 [ipfs]
 host = "ipfs.infura.io:5001"

@@ -19,6 +19,9 @@ pub enum Error {
 
 	#[error("Unexpect Error, err: {0}")]
 	OtherError(#[from] anyhow::Error),
+
+	#[error("Parse private Error, err: {0}")]
+	PrivateKeyError(#[from] secp256k1::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

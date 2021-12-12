@@ -1,5 +1,5 @@
 use component_ipfs::{IpfsClient, IpfsConfig};
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, str::FromStr};
 use web3::{signing::SecretKeyRef, types::U64};
 
 use crate::{
@@ -18,8 +18,9 @@ pub async fn run_worker(
 		.map_err(|e| (U64::zero(), e.into()))?;
 	let ipfs = IpfsClient::new(ipfs.host);
 	// todo get worker key from moonbeam config seed;
-	let prvk = secp256k1::key::ONE_KEY;
-	let worker_key_ref = SecretKeyRef::new(&prvk);
+	// let prvk = secp256k1::key::ONE_KEY;
+	let moonbeam_worker_pri = secp256k1::SecretKey::from_str(&moonbeam.private_key)
+		.map_err(|e| (U64::zero(), e.into()))?;
 
 	// if user not set start_number, then use best number as the start number
 	let mut start = if let Some(s) = start_number {
@@ -49,7 +50,7 @@ pub async fn run_worker(
 		// 3. query kilt
 		let res = query_kilt::filter(&kilt.url, r).await?;
 		// 4. submit tx
-		submit_moonbeam::submit_tx(&proof_contract, *worker_key_ref, res)
+		submit_moonbeam::submit_tx(&proof_contract, moonbeam_worker_pri, res)
 			.await
 			.map_err(|e| (start, e.into()))?;
 		log::info!("finish batch task");
