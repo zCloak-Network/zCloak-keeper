@@ -44,6 +44,7 @@ pub fn keep_task<N: AsRef<str>>(
 	name: N,
 	task: Box<dyn ServerTaskKeep + Send + Sync>,
 ) -> anyhow::Result<()> {
+	log::info!("[moobeam] | task start running!");
 	unsafe {
 		if let Some(running) = RUNNING_TASKS.get_mut() {
 			running.insert(name.as_ref().to_string(), task);

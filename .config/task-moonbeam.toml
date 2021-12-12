@@ -1,10 +1,10 @@
 [moonbeam]
-url = "ws://127.0.0.1:9933"
-contract = "0x970951a12F975E6762482ACA81E57D5A2A4e73F4"
-private_key = ""
+url = "http://45.32.73.14:40001"
+contract = "0xbb84114AEDaf5C4140D14EB179A5dcae4fD0C2e3"
+private_key = "779782a9534e6ef57b57001af3b960c0607451a7414e8c88208386dff10b812c"
 
 [ipfs]
-host = "ipfs.infura.io:5001"
+base_url = "http://ipfs.infura.io:5001"
 
 [kilt]
 url = "wss://full-nodes.kilt.io:9944/"
