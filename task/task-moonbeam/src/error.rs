@@ -1,7 +1,5 @@
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-	// #[error("paraslog FAILED")]
-	// ParseLog(String),
 	#[error("Web3 Error, err: {0}")]
 	Web3Error(#[from] web3::Error),
 
