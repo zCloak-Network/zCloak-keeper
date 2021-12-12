@@ -14,7 +14,7 @@ use task_moonbeam::task::MoonbeamTask;
 use crate::utils::transfer::{TaskConfigTemplateParam, TaskStartParam};
 
 /// Auto start all configured task
-pub async fn auto_start_task(base_path: PathBuf) -> anyhow::Result<()> {
+pub async fn auto_start_task(base_path: PathBuf, start_number: Option<u64>) -> anyhow::Result<()> {
 	let available_tasks = task_management::task::available_tasks()?;
 	let read_dir: Vec<PathBuf> = std::fs::read_dir(&base_path)?
 		.into_iter()
@@ -40,6 +40,7 @@ pub async fn auto_start_task(base_path: PathBuf) -> anyhow::Result<()> {
 				config: None,
 				password: None,
 				store_password: false,
+				start_number,
 			};
 			start_task_single(base_path.clone(), param).await?;
 		}
@@ -85,7 +86,7 @@ pub async fn start_task_single(base_path: PathBuf, param: TaskStartParam) -> any
 		// }
 		MoonbeamTask::NAME => {
 			let task_config = Config::load(&path_config)?;
-			let task = MoonbeamTask::new(task_config).await?;
+			let task = MoonbeamTask::new(task_config, param.start_number).await?;
 			task_management::task::keep_task(MoonbeamTask::NAME, Box::new(task))?;
 		},
 

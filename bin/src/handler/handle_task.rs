@@ -53,6 +53,7 @@ pub async fn handle_task(server: String, command: TaskCommand) -> anyhow::Result
 				config: content,
 				password,
 				store_password: options.store_password,
+				start_number: None, // todo set this from other method in future.
 			};
 			let resp = reqwest::Client::builder()
 				.build()?

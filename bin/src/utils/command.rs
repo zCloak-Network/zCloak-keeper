@@ -204,6 +204,10 @@ pub struct ServerOptions {
 	///The zCloak server config or data base path
 	#[structopt(long, parse(from_os_str))]
 	pub base_path: Option<PathBuf>,
+
+	/// The starting block number of scanning node events.
+	#[structopt(short, long)]
+	pub start_number: Option<u64>,
 }
 
 #[derive(Clone, Debug, StructOpt)]

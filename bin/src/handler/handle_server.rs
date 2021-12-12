@@ -43,7 +43,7 @@ async fn init(options: ServerOptions) -> anyhow::Result<()> {
 async fn auto_start_task(options: ServerOptions) -> anyhow::Result<()> {
 	let base_path = utils::base_path(options.base_path)?;
 	log::info!("zCloak server start to auto start task! ");
-	task_manager::auto_start_task(base_path).await
+	task_manager::auto_start_task(base_path, options.start_number).await
 }
 
 async fn start_webserver(options: ServerOptions) -> anyhow::Result<()> {

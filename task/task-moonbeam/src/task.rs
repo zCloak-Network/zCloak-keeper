@@ -42,7 +42,10 @@ impl ServerTask<MoonbeamTaskBus> for MoonbeamTask {
 }
 
 impl MoonbeamTask {
-	pub async fn new(config: MoonbeamTaskConfig) -> anyhow::Result<Self> {
+	pub async fn new(
+		config: MoonbeamTaskConfig,
+		start_number: Option<u64>,
+	) -> anyhow::Result<Self> {
 		config.store(MoonbeamTask::NAME)?;
 		let bus = MoonbeamTaskBus::default();
 
@@ -50,7 +53,7 @@ impl MoonbeamTask {
 		stack.spawn_service::<MoonBeamService>()?;
 
 		let mut sender = stack.bus().tx::<MoonbeamTaskMessage>()?;
-		sender.send(MoonbeamTaskMessage { start_block: None }).await?;
+		sender.send(MoonbeamTaskMessage { start_block: start_number }).await?;
 		Ok(Self { stack })
 	}
 }
