@@ -141,11 +141,11 @@ pub enum ToolsCommand {
 	},
 	Decrypt {
 		///path
-		#[structopt(short, long)]
+		#[structopt(long)]
 		path: String,
 
 		///password
-		#[structopt(short, long)]
+		#[structopt(long)]
 		password: String,
 	},
 	NewAccount {
