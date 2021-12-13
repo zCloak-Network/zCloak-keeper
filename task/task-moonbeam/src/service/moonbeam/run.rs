@@ -410,7 +410,7 @@ pub mod submit_moonbeam {
 					.signed_call_with_confirmations(
 						"addVerification",
 						(v.data_owner, v.root_hash, v.c_type, v.program_hash, v.is_passed),
-						Options::default(),
+						{let mut options = Options::default(); options.gas = Some(1000000.into()); options },
 						TRANSACTION_CONFIRMATIONS,
 						&worker,
 					)
