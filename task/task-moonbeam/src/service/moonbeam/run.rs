@@ -343,6 +343,7 @@ pub mod query_ipfs {
 		let outputs = p.outputs();
 		let program_hash = p.program_hash();
 		let r = verify_proof(&program_hash, context, inputs.as_slice(), outputs.as_slice())?;
+		log::info!("[STARKVM] the proof {:?} is verified as {}", p.proof_cid, r);
 		Ok(r)
 	}
 }
@@ -350,7 +351,7 @@ pub mod query_ipfs {
 pub mod query_kilt {
 	use super::*;
 	use crate::service::moonbeam::run::query_ipfs::VerifyResult;
-	use support_kilt_node::query_attestation;
+	// use support_kilt_node::query_attestation;
 
 	pub async fn filter(
 		url: &str,
@@ -358,9 +359,11 @@ pub mod query_kilt {
 	) -> std::result::Result<Vec<VerifyResult>, (U64, Error)> {
 		let mut v = vec![];
 		for i in result {
-			let r = query_attestation(url, i.root_hash.into())
-				.await
-				.map_err(|e| (i.number, e.into()))?;
+			// TODO: change this back later
+			// let r = query_attestation(url, i.root_hash.into())
+			// 	.await
+			// 	.map_err(|e| (i.number, e.into()))?;
+			let r = true;
 			if r {
 				v.push(i)
 			} else {
@@ -388,6 +391,7 @@ pub mod submit_moonbeam {
 		worker: SecretKey,
 		res: Vec<VerifyResult>,
 	) -> Result<()> {
+		log::info!("[Moonbeam] submiting the tx");
 		let key_ref = SecretKeyRef::new(&worker);
 		let worker_address = key_ref.address();
 		for v in res {
@@ -400,6 +404,7 @@ pub mod submit_moonbeam {
 					None,
 				)
 				.await?;
+			log::info!("[Moonbeam] hasSubmitted result is {}", r);
 			if !r {
 				let r = contract
 					.signed_call_with_confirmations(
@@ -410,6 +415,7 @@ pub mod submit_moonbeam {
 						&worker,
 					)
 					.await?; // TODO handle result for some error
+				log::warn!("[Moonbeam] receipt is {:?}", r);
 				log::info!(
 					"[moonbeam] submit verification|tx:{:}|data owner:{:}|root_hash:{:}",
 					r.transaction_hash,
