@@ -58,7 +58,7 @@ fn build_request_url(base_url: &Url, cid: &str) -> Result<Url> {
 		IPFS_IO => {
 			let base_url = Url::parse(IPFS_IO).unwrap();
 			base_url.join(IPFS_IO_PATH)?.join(cid)?
-		}
+		},
 		_ => return Err(Error::InvalidIpfsHost),
 	};
 	Ok(url)

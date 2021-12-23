@@ -32,7 +32,6 @@ tokio = { version = "1", features = ["full"] }
 server-traits = { path = "../../traits"}
 task-management = { path = "../../task/task-management"}
 primitives = { path = "../../primitives" }
-components-subxt-client = { path = "../../components/subxt-client" }
 component-ipfs = { path = "../../components/ipfs" }
 support-kilt-node = { path = "../../supports/support-kilt-node" }
 
@@ -43,11 +42,7 @@ async-recursion = "0.3.2"
 web3 = "0.17.0"
 array-bytes = "1.1.0"
 secp256k1 = { version = "0.20", features = ["recovery"]}
-starksVM = { git = "https://github.com/byteflyfunny/starks-verifier.git", default-features = false}
 eth-keystore = "0.3.0"
-subxt = { git = "https://github.com/byteflyfunny/substrate-subxt.git", branch = "jay_subxt" }
-
-# frame-support = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.12"}
 
 [features]
 default = ["std"]

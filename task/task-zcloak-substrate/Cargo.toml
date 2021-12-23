@@ -26,20 +26,10 @@ serde_json = "1"
 
 lifeline = { git = "https://github.com/fewensa/lifeline-rs.git", branch = "threads-safely" }
 microkv = { git = "https://github.com/ex0dus-0x/microkv.git", branch = "master" }
-
 postage = "0.4.1"
-
 tokio = { version = "1", features = ["full"] }
-
-
 server-traits = { path = "../../traits"}
 task-management = { path = "../../task/task-management"}
-support-zcloak-node = { path = "../../supports/support-zcloak-node" }
 primitives = { path = "../../primitives" }
-components-subxt-client = { path = "../../components/subxt-client" }
-
-sp-keyring = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.12"}
-
-env_logger = "0.9.0"
 
 async-recursion = "0.3.2"

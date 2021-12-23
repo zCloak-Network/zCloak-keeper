@@ -7,7 +7,6 @@ use crate::{
 };
 use components_subxt_client::SubstrateClient;
 use primitives::utils::ipfs::config::IpfsConfig;
-use support_zcloak_node::{account::ZcloakAccount, client::Zcloak, runtime::ZcloakRuntime};
 
 #[derive(Debug)]
 pub struct ZcloakNodeService {

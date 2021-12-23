@@ -5,5 +5,4 @@
 #[macro_use]
 extern crate serde;
 
-pub mod types;
 pub mod utils;

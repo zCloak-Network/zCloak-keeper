@@ -3,7 +3,7 @@ name = "task-management"
 version = "0.1.0"
 authors = ["zCloak Network"]
 description = "zCloak verify server"
-repository = "https://github.com/zCloak-Network/zCloak-server.git"
+repository = "https://github.com/zCloak-Network/zCloak-worker.git"
 include = [
     "Cargo.toml",
     "**/*.rs",

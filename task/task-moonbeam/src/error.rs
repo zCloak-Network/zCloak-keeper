@@ -15,6 +15,9 @@ pub enum Error {
 	#[error("Fetch IPFS Error, err: {0}")]
 	IpfsError(#[from] component_ipfs::Error),
 
+	#[error("Fetch Kilt attestation Error, err: {0}")]
+	KiltError(#[from] support_kilt_node::Error),
+
 	#[error("Unexpect Error, err: {0}")]
 	OtherError(#[from] anyhow::Error),
 

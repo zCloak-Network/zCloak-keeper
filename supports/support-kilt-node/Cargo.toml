@@ -10,30 +10,30 @@ include = [
     "README.md",
     "LICENSE"
 ]
-keywords = ["substrate"]
 readme = 'README.md'
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive", "full"] }
+codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
 log = "0.4.14"
 env_logger = "0.9.0"
 async-trait = "0.1"
-
-
-jsonrpsee-types = "0.4.1"
-jsonrpsee-ws-client = { version = "0.4.1", default-features = false }
-jsonrpsee-http-client = { version = "0.4.1", default-features = false }
-
+thiserror = "1.0"
+jsonrpsee = { version = "0.6.1", features = ["macros", "http-client", "ws-client"] }
+serde_json = "1.0.68"
+sp-core = "4.0.0-dev"
+sp-runtime = "4.0.0-dev"
 serde = { version = "1", features = ["derive"] }
 anyhow = "1.0"
-
-subxt = { git = "https://github.com/byteflyfunny/substrate-subxt.git", branch = "jay_subxt"}
-subxt-macro = { git = "https://github.com/byteflyfunny/substrate-subxt.git", branch = "jay_subxt" }
-subxt-client = { package = "components-subxt-client", path = "../../components/subxt-client"}
+frame-metadata = "14.2.0"
 primitives = { package = "primitives", path = "../../primitives"}
 server-traits = { path = "../../traits"}
 scale-info = {version = "1.0", default-features = false, features = ["derive"]}
 primitive-types = { version = "0.10", features = ["scale-info"] }
+
+
+[dev-dependencies]
+tokio = "1.15.0"
+hex = "0.4"

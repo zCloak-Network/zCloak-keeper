@@ -1,11 +1,11 @@
 use component_ipfs::{IpfsClient, IpfsConfig};
 use std::{collections::BTreeMap, str::FromStr};
 use web3::{signing::SecretKeyRef, types::U64};
-
 use crate::{
 	config::{KiltConfig, MoonbeamConfig},
 	error::{Error, Result},
 };
+
 
 pub async fn run_worker(
 	start_number: Option<U64>,
@@ -45,10 +45,14 @@ pub async fn run_worker(
 		}
 
 		// 2. query ipfs and verify cid context
+		// TODO: handle error
+		// 1. # of reconnecting exceeds the bound
+		// 2. # http body error: fail to parse the body to string
 		let r = query_ipfs::query_and_verify(&ipfs, res).await?;
 
 		// 3. query kilt
 		let res = query_kilt::filter(&kilt.url, r).await?;
+
 		// 4. submit tx
 		submit_moonbeam::submit_tx(&proof_contract, moonbeam_worker_pri, res)
 			.await
@@ -135,6 +139,7 @@ pub mod scan_moonbeam {
 		}
 	}
 
+	// TODO: turn into struct
 	type ProofEventType = (Address, Bytes32, Bytes32, Bytes32, String, String, Bytes32, bool);
 
 	pub fn web3eth(config: &MoonbeamConfig) -> std::result::Result<Web3<Http>, Web3Err> {
@@ -290,7 +295,10 @@ pub mod query_ipfs {
 					.keep_fetch_proof(proof.proof_cid())
 					.await
 					.map_err(|e| (number, e.into()))?;
-				log::info!("[IPFS] ipfs proof fetched and the content length is {}", cid_context.len());
+				log::info!(
+					"[IPFS] ipfs proof fetched and the content length is {}",
+					cid_context.len()
+				);
 				// if verify meet error, do not throw it.
 				let result = match verify(&proof, &cid_context) {
 					Ok(r) => {
@@ -351,7 +359,7 @@ pub mod query_ipfs {
 pub mod query_kilt {
 	use super::*;
 	use crate::service::moonbeam::run::query_ipfs::VerifyResult;
-	// use support_kilt_node::query_attestation;
+	use support_kilt_node::query_attestation;
 
 	pub async fn filter(
 		url: &str,
@@ -359,11 +367,7 @@ pub mod query_kilt {
 	) -> std::result::Result<Vec<VerifyResult>, (U64, Error)> {
 		let mut v = vec![];
 		for i in result {
-			// TODO: change this back later
-			// let r = query_attestation(url, i.root_hash.into())
-			// 	.await
-			// 	.map_err(|e| (i.number, e.into()))?;
-			let r = true;
+			let r = query_attestation(url, i.root_hash.into()).await.map_err(|e| (i.number, e.into()))?;
 			if r {
 				v.push(i)
 			} else {
@@ -410,7 +414,11 @@ pub mod submit_moonbeam {
 					.signed_call_with_confirmations(
 						"addVerification",
 						(v.data_owner, v.root_hash, v.c_type, v.program_hash, v.is_passed),
-						{let mut options = Options::default(); options.gas = Some(1000000.into()); options },
+						{
+							let mut options = Options::default();
+							options.gas = Some(1000000.into());
+							options
+						},
 						TRANSACTION_CONFIRMATIONS,
 						&worker,
 					)

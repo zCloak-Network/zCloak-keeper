@@ -10,7 +10,6 @@ include = [
     "README.md",
     "LICENSE"
 ]
-keywords = ["substrate"]
 readme = 'README.md'
 edition = "2018"
 
