@@ -17,8 +17,7 @@ pub async fn run_worker(
 	let proof_contract = scan_moonbeam::kilt_proofs_contract(&web3, &moonbeam)
 		.map_err(|e| (U64::zero(), e.into()))?;
 	let ipfs = IpfsClient::new(ipfs.base_url);
-	// todo get worker key from moonbeam config seed;
-	// let prvk = secp256k1::key::ONE_KEY;
+
 	let moonbeam_worker_pri = secp256k1::SecretKey::from_str(&moonbeam.private_key)
 		.map_err(|e| (U64::zero(), e.into()))?;
 
