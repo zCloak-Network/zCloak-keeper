@@ -3,22 +3,22 @@ use keeper_primitives::U64;
 use keeper_primitives::{
     Bytes32,
     VerifyResult,
+    Result as KeeperResult,
     moonbeam::ProofEvent,
     ipfs::IpfsClient,
-    error::{Result, Error},
-    verify::verify_proof,
+    verify::{Result, verify_proof},
 };
 
 pub async fn query_and_verify(
     ipfs: &IpfsClient,
     input: BTreeMap<U64, Vec<ProofEvent>>,
-) -> std::result::Result<Vec<VerifyResult>, (U64, Error)> {
+) -> KeeperResult<Vec<VerifyResult>> {
     log::info!("[IPFS] start querying ipfs");
     let mut ret = vec![];
     for (number, proofs) in input {
         for proof in proofs {
             let cid_context = ipfs
-                .keep_fetch_proof(proof.proof_cid())
+                .fetch_proof(proof.proof_cid())
                 .await
                 .map_err(|e| (number, e.into()))?;
             log::info!(
@@ -30,7 +30,7 @@ pub async fn query_and_verify(
                 Ok(r) => {
                     if !r {
                         // TODO set to database in future
-                        log::error!("[verify] verify zkStark from cid context failed|event_blocknumber:{:}|cid:{:}", number, proof.proof_cid());
+                        log::info!("[verify] verify zkStark from cid context failed|event_blocknumber:{:}|cid:{:}", number, proof.proof_cid());
                     }
                     r
                 }
@@ -50,7 +50,6 @@ pub async fn query_and_verify(
     }
     Ok(ret)
 }
-
 
 pub(crate) fn verify(p: &ProofEvent, context: &[u8]) -> Result<bool> {
     let inputs = p.public_inputs();

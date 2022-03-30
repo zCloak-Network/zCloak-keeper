@@ -1,8 +1,8 @@
 use std::os::unix::prelude::OsStringExt;
 use web3::contract::{Error as Web3ContractErr, Contract, tokens::{Tokenize, Detokenize} };
 pub use super::*;
-use web3::{self as web3, api::Eth, transports::Http, ethabi, Transport };
-use crate::error::Error;
+use web3::{self as web3, api::Eth, transports::{WebSocket, Http}, ethabi, Transport };
+
 
 pub const MOONBEAM_SCAN_SPAN: usize = 10;
 // TODO: move it to config file
@@ -10,70 +10,6 @@ pub const MOONBEAM_LISTENED_EVENT: &'static str = "AddProof";
 pub const MOONBEAM_BLOCK_DURATION: u64 = 12;
 pub const MOONBEAM_TRANSACTION_CONFIRMATIONS: usize = 2;
 
-pub type Result<T> = std::result::Result<T, Error>;
-pub type ProofEventType = (Address, Bytes32, Bytes32, Bytes32, String, String, Bytes32, bool);
-
-
-#[derive(Debug, Default)]
-pub struct ProofEvent {
-    pub(crate) data_owner: Address,
-    pub(crate) kilt_address: Bytes32,
-    pub(crate) c_type: Bytes32,
-    pub(crate) program_hash: Bytes32,
-    pub(crate) field_name: String,
-    pub(crate) proof_cid: String,
-    pub(crate) root_hash: Bytes32,
-    pub(crate) expect_result: bool,
-}
-
-impl ProofEvent {
-    pub fn proof_cid(&self) -> &str {
-        self.proof_cid.as_str()
-    }
-    pub fn public_inputs(&self) -> Vec<u128> {
-        let hex_str = hex::encode(&self.field_name);
-        let r = u128::from_str_radix(&hex_str, 16)
-            .expect("filed_name from event must be fit into u128 range");
-        // TODO in future, other params can be part of the inputs
-        vec![r]
-    }
-
-    // calc the output from `ProofEvent`
-    pub fn outputs(&self) -> Vec<u128> {
-        let mut outputs = vec![];
-        let mut mid: [u8; 16] = Default::default();
-        mid.copy_from_slice(&self.root_hash[0..16]);
-        outputs.push(u128::from_be_bytes(mid));
-        mid.copy_from_slice(&self.root_hash[16..]);
-        outputs.push(u128::from_be_bytes(mid));
-        if self.expect_result {
-            outputs.push(1)
-        } else {
-            outputs.push(0)
-        }
-
-        outputs
-    }
-    pub fn program_hash(&self) -> Bytes32 {
-        self.program_hash
-    }
-}
-
-
-impl From<ProofEventType> for ProofEvent {
-    fn from(tuple_type: ProofEventType) -> Self {
-        Self {
-            data_owner: tuple_type.0,
-            kilt_address: tuple_type.1,
-            c_type: tuple_type.2,
-            program_hash: tuple_type.3,
-            field_name: tuple_type.4,
-            proof_cid: tuple_type.5,
-            root_hash: tuple_type.6,
-            expect_result: tuple_type.7,
-        }
-    }
-}
 
 // TODO: transform
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -86,44 +22,39 @@ pub struct MoonbeamConfig {
     pub private_key: String,
 }
 
-pub struct MoonbeamClient {
-    connect: Web3<Http>
+pub struct MoonbeamClient<T: Transport> {
+    inner: Web3<T>
 }
 
+impl<T: Transport> MoonbeamClient<T> {
 
-impl MoonbeamClient {
-
-    fn connect(url: &str) -> Result<Self> {
-        let http = web3::transports::Http::new(url)?;
-        Ok(Self {connect: Web3::new(http) })
+    pub fn web3(self) -> Web3<T> {
+        self.inner
     }
 
-
-    fn proof_contract(&self, proof_addr: &str) -> Result<Contract<Http>> {
-        let addr = if proof_addr.starts_with("0x") {
-            &proof_addr[2..]
-        } else {
-            proof_addr
-        };
-
-        let hex_res =
-            hex::decode(addr).map_err(|e| Error::InvalidEthereumAddress(format!("{:}", e)))?;
-        if hex_res.len() != 20 {
-            return Err(Error::InvalidEthereumAddress(format!(
-                "Address is not equal to 20 bytes: {:}",
-                addr
-            )))
-        }
-        let address = Address::from_slice(&hex_res);
-
-        let kilt_proofs_v1 = Contract::from_json(
-            self.connect.eth(),
+    // get proof contract
+    pub fn proof_contract(self, contract_addr: &str) -> Result<Contract<T>> {
+        let address = utils::trim_address_str(contract_addr)?;
+        let contract = Contract::from_json(
+            self.web3().eth(),
             address,
             include_bytes!("../contracts/KiltProofs.json"),
         )?;
-        Ok(kilt_proofs_v1)
+        Ok(contract)
+    }
+
+    // get submit verification contract
+    pub fn aggregator_contract(self, contract_addr: &str) -> Result<Contract<T>> {
+        let address = utils::trim_address_str(contract_addr)?;
+        let contract = Contract::from_json(
+            self.web3().eth(),
+            address,
+            include_bytes!("../contracts/SimpleAggregator.json"),
+        )?;
+        Ok(contract)
     }
 }
+
 
 pub mod utils {
     use super::*;
@@ -180,5 +111,73 @@ pub mod utils {
                 ))
             })
             .collect::<_>()
+    }
+
+
+    pub(super) fn trim_address_str(addr: &str) -> Result<Address> {
+        let addr = if addr.starts_with("0x") {
+            &addr[2..]
+        } else {
+            addr
+        };
+        let hex_res =
+            hex::decode(addr).map_err(|e| Error::InvalidEthereumAddress(format!("{:}", e)))?;
+        // check length
+        if hex_res.len() != 20 {
+            return Err(Error::InvalidEthereumAddress(format!(
+                "Address is not equal to 20 bytes: {:}",
+                addr
+            )))
+        }
+        let address = Address::from_slice(&hex_res);
+        Ok(address)
+
+    }
+}
+
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("Web3 Client Error, err: {0}")]
+    Web3Error(#[from] web3::Error),
+
+    #[error("Web3 Contract Error, err: {0}")]
+    Web3ContractError(#[from] web3::contract::Error),
+
+    #[error("Ethereum Abi Error, err: {0}")]
+    EthAbiError(#[from] web3::ethabi::Error),
+
+    #[error("Invalid Ethereum Address: {0}")]
+    InvalidEthereumAddress(String),
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{MoonbeamClient, U64};
+    use web3::transports::Http;
+
+    #[test]
+    fn test_cargo_env_variables() {
+        let contract_name = "KiltProofs";
+        let bytes = include_bytes!("../contracts/KiltProofs.json");
+        assert!(bytes.len() != 0);
+    }
+
+    #[tokio::test]
+    async fn event_parse_should_work() {
+        let web3 = Web3::new(Http::new("http://localhost:8545").unwrap());
+        let bytecode = include_str!("../contracts/SimpleEvent.bin");
+        let accounts = web3.eth().accounts().await.unwrap();
+        let contract = Contract::deploy(web3.eth(), include_bytes!("../contracts/SimpleEvent.abi"))
+            .unwrap()
+            .confirmations(1)
+            .execute(bytecode, (), accounts[0])
+            .await
+            .unwrap();
+
     }
 }

@@ -1,74 +1,82 @@
-use super::*;
+use std::time::Duration;
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
+
+use super::*;
+
 // ipfs max retry times
 const IPFS_MAX_RETRY_TIMES: usize = 5;
+const TIME_OUT: Duration = Duration::from_secs(5);
+// TODO:
+const INFURA_USERNAME: &str = "26pucpYcATVSbrd7Cfvjwi2XcwT";
+const INFURA_PASSWORD: &str = "9b3ca935d5c247e3fa9542f713498c91";
+const IPFS_CAT_PATH: &str = "api/v0/cat";
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct IpfsConfig {
+    // e.g.  https://ipfs.infura.io:5001
     pub base_url: String,
 }
 
-
+// fixme: remove?
 pub struct IpfsClient {
-    base_url: Url,
+    // e.g.  https://ipfs.infura.io:5001/api/v0/cat
+    pub cat_url_prefix: String
 }
 
 
 impl IpfsClient {
-    pub fn new(url: String) -> Self {
-        Self { base_url: Url::parse(&url).expect("host must can be convented into a valid url") }
+    // e.g. https://ipfs.infura.io:5001/api/v0/cat
+    fn new(config_base_url: &str) -> Result<Self> {
+        if config_base_url.starts_with("https") {
+            let cat_url = if !config_base_url.ends_with("/") {
+                config_base_url.to_owned() + "/"
+            } else {
+                config_base_url.to_owned()
+            };
+            return Ok(IpfsClient { cat_url_prefix: cat_url + IPFS_CAT_PATH });
+        } else {
+            return Err(Error::InvalidIpfsHost);
+        }
     }
 
-    pub async fn keep_fetch_proof(&self, proof_cid: &str) -> Result<Vec<u8>> {
-        log::info!("[IPFS] start querying ipfs cid : {:?}", proof_cid);
-        let mut url = build_request_url(&self.base_url, proof_cid)?;
-        // just align with reqwest http request. if use other scheme should change this.
-        url.set_scheme("https").map_err(|_| Error::SchemeError)?;
+    pub async fn fetch_proof(&self, cid: &str) -> Result<Vec<u8>> {
+        log::info!("[IPFS] start querying ipfs cid : {:?}", cid);
 
-        log::debug!("file which on ipfs, url is {:?}", url);
-
-        let mut times = 0;
-        let body = loop {
-            let maybe_response = reqwest::get(url.clone()).await;
-            match maybe_response {
-                Ok(r) => break r.text().await?,
-                Err(e) => {
-                    if e.is_timeout() && times < IPFS_MAX_RETRY_TIMES {
-                        log::warn!("ipfs client fetch data timeout! retry: {:} ...", times + 1);
-                        times += 1;
-                        continue
-                    }
-                    log::error!("ipfs client fetch data error. reason: {:?}", e);
-                    Err(e)?
-                },
-            }
-        };
-
-        let body = body.as_bytes().to_owned();
-        Ok(body)
+        let client = Client::builder().connect_timeout(TIME_OUT).build()?;
+        keep_fetch(&self.cat_url_prefix, cid, client).await
     }
 }
 
-const IPFS_INFURA_IO: &'static str = "http://ipfs.infura.io:5001/";
-const IPFS_INFUA_IO_PATH: &'static str = "api/v0/cat?arg=";
-const IPFS_IO: &'static str = "https://ipfs.io/";
-const IPFS_IO_PATH: &'static str = "ipfs";
+async fn keep_fetch(base_url: &str,  cid: &str, client: Client) -> Result<Vec<u8>> {
+    // TODO: make it config?
+    let params = [("arg", cid)];
+    let mut body = String::new();
 
-fn build_request_url(base_url: &Url, cid: &str) -> Result<Url> {
-    let url = match base_url.as_str() {
-        IPFS_INFURA_IO => {
-            // TODO improve this, now we add parameters just in a directly way. (arg=?)
-            let path = IPFS_INFUA_IO_PATH.to_string() + cid;
-            base_url.join(&path)?
-        },
-        IPFS_IO => {
-            let base_url = Url::parse(IPFS_IO).unwrap();
-            base_url.join(IPFS_IO_PATH)?.join(cid)?
-        },
-        _ => return Err(Error::InvalidIpfsHost),
+    for i in 0..IPFS_MAX_RETRY_TIMES {
+        let maybe_response = client.post(base_url)
+            .query(&params)
+            .basic_auth(INFURA_USERNAME, Some(INFURA_PASSWORD))
+            .send()
+            .await;
+        match maybe_response {
+            Ok(r) => {
+                body = r.text().await?;
+                break;
+            },
+            Err(e) => {
+                if e.is_timeout() && i < (IPFS_MAX_RETRY_TIMES - 1) {
+                    log::warn!("ipfs client fetch data timeout! retry: {:} ...", i + 1);
+                    continue
+                }
+                log::error!("ipfs client fetch data error. reason: {:?}", e);
+                Err(e)?
+            },
+        }
     };
-    Ok(url)
+    Ok(body.into_bytes())
 }
+
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -81,5 +89,6 @@ pub enum Error {
     #[error("Set Scheme Error")]
     SchemeError,
 }
+
 pub type Result<T> = std::result::Result<T, Error>;
 

@@ -1,34 +1,45 @@
 
 use secp256k1::SecretKey;
 use std::{collections::BTreeMap, str::FromStr};
-use web3::{signing::SecretKeyRef, types::U64};
+use web3::{signing::SecretKeyRef, Transport, types::U64};
 use web3::{
-    contract::{Contract, Options},
+    contract::{Contract, tokens::Detokenize, Options},
     signing::Key,
     transports::Http,
     Web3
 };
 use web3::types::{Address, BlockNumber, FilterBuilder, Log};
-use keeper_primitives::{IpfsClient, IpfsConfig};
+use keeper_primitives::{IpfsClient, IpfsConfig, MoonbeamClient};
 use keeper_primitives::{
     VerifyResult,
-    error::{Result, Error},
+    Result as KeeperResult,
     moonbeam::{self,
         MOONBEAM_BLOCK_DURATION,
         MOONBEAM_TRANSACTION_CONFIRMATIONS,
         MOONBEAM_LISTENED_EVENT,
         MOONBEAM_SCAN_SPAN,
-        ProofEvent, ProofEventType,
+        ProofEvent,
         MoonbeamConfig,
     }
 };
 
-pub async fn scan_events(
+// TODO: before get into scan_events
+// record the scanned block number somewhere(e.g. file)
+// compare the file-recorded block to the one passed from the
+// command the choose the latest one.
+
+// initialize connection and contract before scan_event
+pub async fn scan_events<T: Transport>(
     mut start: U64,
-    web3: &Web3<Http>,
-    contract: &Contract<Http>,
-) -> Result<(BTreeMap<U64, Vec<ProofEvent>>, U64)> {
-    let best = web3.eth().block_number().await?;
+    web3: &Web3<T>,
+    proof_contract: &Contract<T>,
+) -> KeeperResult<BTreeMap<U64, Vec<ProofEvent>>> {
+    let maybe_best = web3.eth().block_number().await;
+    let best = match maybe_best {
+        Ok(b) => b,
+        Err(e) => return Err((U64::default(), e.into()))
+    };
+    // if start > finalized, reset `start` pointer to best
     if start > best {
         log::warn!("scan moonbeam start block is higher than current best! start_block={}, best_block:{}", start, best);
         start = best;
@@ -41,15 +52,24 @@ pub async fn scan_events(
 			start,
 			end,
 			best
-		);
-    let r = moonbeam::utils::events::<_, ProofEventType>(
+    );
+    // parse event
+    let r = moonbeam::utils::events::<_, ProofEvent>(
         web3.eth(),
-        contract,
+        proof_contract,
         MOONBEAM_LISTENED_EVENT,
         Some(start),
         Some(end),
-    )
-        .await?;
+    ).await;
+
+    // if event parse error, return Err(start) and output error log
+    let r = match r {
+        Ok(events) => events,
+        Err(err) => {
+            log::error!("Moonbeam Scan Err: Event parse error. {:?}", err);
+            return Err((start, err.into()));
+        }
+    };
 
     let hit = r.len();
 
@@ -68,18 +88,19 @@ pub async fn scan_events(
 			hit,
 			result.keys().into_iter().map(|n| *n).collect::<Vec<U64>>()
 		);
-    Ok((result, end))
+    Ok(result)
 }
 
 pub async fn submit_tx(
     contract: &Contract<Http>,
     worker: SecretKey,
     res: Vec<VerifyResult>,
-) -> Result<()> {
+) -> std::result::Result<(), keeper_primitives::moonbeam::Error> {
     log::info!("[Moonbeam] submiting the tx");
     let key_ref = SecretKeyRef::new(&worker);
     let worker_address = key_ref.address();
     for v in res {
+        // TODO: read multiple times?
         let r: bool = contract
             .query(
                 "hasSubmitted",
