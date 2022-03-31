@@ -20,6 +20,10 @@ microkv = { git = "https://github.com/ex0dus-0x/microkv.git", branch = "master" 
 tokio = { version = "1", features = ["full"] }
 config = "0.11"
 structopt = "0.3"
+secp256k1 = { version = "0.20", features = ["recovery"]}
 
 # self
 keeper-primitives = { path = "../primitives" }
+moonbeam = { package = "component-moonbeam", path = "../moonbeam"}
+ipfs = { package = "component-ipfs", path = "../ipfs"}
+kilt = { package = "component-kilt", path = "../kilt"}

@@ -1,25 +1,17 @@
-
+use std::collections::BTreeMap;
 use secp256k1::SecretKey;
-use std::{collections::BTreeMap, str::FromStr};
-use web3::{signing::SecretKeyRef, Transport, types::U64};
-use web3::{
-    contract::{Contract, tokens::Detokenize, Options},
-    signing::Key,
-    transports::Http,
-    Web3
-};
-use web3::types::{Address, BlockNumber, FilterBuilder, Log};
-use keeper_primitives::{IpfsClient, IpfsConfig, MoonbeamClient};
+use keeper_primitives::{Contract, Http, Web3Options};
+use web3::signing::{SecretKeyRef, Key};
 use keeper_primitives::{
+    U64,
+    MoonbeamClient,
     VerifyResult,
     Result as KeeperResult,
     moonbeam::{self,
-        MOONBEAM_BLOCK_DURATION,
         MOONBEAM_TRANSACTION_CONFIRMATIONS,
         MOONBEAM_LISTENED_EVENT,
         MOONBEAM_SCAN_SPAN,
         ProofEvent,
-        MoonbeamConfig,
     }
 };
 
@@ -29,17 +21,18 @@ use keeper_primitives::{
 // command the choose the latest one.
 
 // initialize connection and contract before scan_event
-pub async fn scan_events<T: Transport>(
+
+pub async fn scan_events(
     mut start: U64,
-    web3: &Web3<T>,
-    proof_contract: &Contract<T>,
-) -> KeeperResult<BTreeMap<U64, Vec<ProofEvent>>> {
-    let maybe_best = web3.eth().block_number().await;
+    client: &MoonbeamClient,
+    proof_contract: &Contract<Http>,
+) -> KeeperResult<(BTreeMap<U64, Vec<ProofEvent>>, U64)> {
+    let maybe_best = client.best_number().await;
     let best = match maybe_best {
         Ok(b) => b,
         Err(e) => return Err((U64::default(), e.into()))
     };
-    // if start > finalized, reset `start` pointer to best
+    // if start > best, reset `start` pointer to best
     if start > best {
         log::warn!("scan moonbeam start block is higher than current best! start_block={}, best_block:{}", start, best);
         start = best;
@@ -55,7 +48,7 @@ pub async fn scan_events<T: Transport>(
     );
     // parse event
     let r = moonbeam::utils::events::<_, ProofEvent>(
-        web3.eth(),
+        client.eth(),
         proof_contract,
         MOONBEAM_LISTENED_EVENT,
         Some(start),
@@ -88,7 +81,7 @@ pub async fn scan_events<T: Transport>(
 			hit,
 			result.keys().into_iter().map(|n| *n).collect::<Vec<U64>>()
 		);
-    Ok(result)
+    Ok((result, end))
 }
 
 pub async fn submit_tx(
@@ -106,7 +99,7 @@ pub async fn submit_tx(
                 "hasSubmitted",
                 (v.data_owner, worker_address, v.root_hash, v.c_type, v.program_hash),
                 None,
-                Options::default(),
+                Web3Options::default(),
                 None,
             )
             .await?;
@@ -117,7 +110,7 @@ pub async fn submit_tx(
                     "addVerification",
                     (v.data_owner, v.root_hash, v.c_type, v.program_hash, v.is_passed),
                     {
-                        let mut options = Options::default();
+                        let mut options = Web3Options::default();
                         options.gas = Some(1000000.into());
                         options
                     },

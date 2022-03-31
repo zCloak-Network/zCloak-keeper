@@ -4,7 +4,7 @@ use serde::{Serialize, Deserialize};
 use frame_metadata::StorageHasher;
 use jsonrpsee::{
     http_client::{HttpClient, HttpClientBuilder},
-    types::{to_json_value, traits::Client, DeserializeOwned, Error as RpcError, JsonValue},
+    types::{to_json_value, traits::Client, Error as RpcError},
     ws_client::{WsClient, WsClientBuilder},
 };
 
@@ -15,7 +15,7 @@ pub type Balance = u128;
 
 const ATTESTATION_PALLET_PREFIX: &'static str = "Attestation";
 const ATTESTATION_STORAGE_PREFIX: &'static str = "Attestations";
-const Hasher: StorageHasher = StorageHasher::Blake2_128Concat;
+const HASHER: StorageHasher = StorageHasher::Blake2_128Concat;
 pub const KILT_MAX_RETRY_TIMES: usize = 5;
 
 #[derive(Default, Clone, Debug, Encode, Decode, PartialEq)]
@@ -38,7 +38,7 @@ pub type Attestation = AttestationDetails<Hash, AccountId, Balance>;
 
 
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub struct KiltConfig {
     pub url: String,
 }
@@ -49,7 +49,7 @@ pub enum KiltClient {
 }
 
 impl KiltClient {
-    pub async fn try_from_url(url: &str) -> std::result::Result<Self, RpcError> {
+    pub async fn try_from_url(url: &str) -> Result<Self> {
         if url.starts_with("ws://") || url.starts_with("wss://") {
             let client =
                 WsClientBuilder::default().max_notifs_per_subscription(4096).build(url).await?;
@@ -90,10 +90,11 @@ fn get_storage_map_key<Key: Encode>(
 ) -> StorageKey {
     let mut bytes = sp_core::twox_128(pallet_prefix.as_bytes()).to_vec();
     bytes.extend(&sp_core::twox_128(storage_prefix.as_bytes())[..]);
-    bytes.extend(key_hash(&key, &Hasher));
+    bytes.extend(key_hash(&key, &HASHER));
     StorageKey(bytes)
 }
 
+#[allow(unused)]
 fn get_storage_value_key(pallet_prefix: &str, storage_prefix: &str) -> StorageKey {
     let mut bytes = sp_core::twox_128(pallet_prefix.as_bytes()).to_vec();
     bytes.extend(&sp_core::twox_128(storage_prefix.as_bytes())[..]);
@@ -122,10 +123,12 @@ fn key_hash<K: Encode>(key: &K, hasher: &StorageHasher) -> Vec<u8> {
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Kilt RPC Client Error, err: {0}")]
-    KiltClientError(#[from] jsonrpsee::types::Error),
+    KiltClientError(#[from] RpcError),
     /// Serde serialization error
     #[error("Serde json error: {0}")]
     Serialization(#[from] serde_json::error::Error),
     #[error("Error decoding storage value: {0}")]
     StorageValueDecode(#[from] codec::Error),
 }
+
+type Result<T> = std::result::Result<T, Error>;

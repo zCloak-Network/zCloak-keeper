@@ -2,7 +2,6 @@ use std::time::Duration;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use super::*;
 
 // ipfs max retry times
 const IPFS_MAX_RETRY_TIMES: usize = 5;
@@ -12,7 +11,7 @@ const INFURA_USERNAME: &str = "26pucpYcATVSbrd7Cfvjwi2XcwT";
 const INFURA_PASSWORD: &str = "9b3ca935d5c247e3fa9542f713498c91";
 const IPFS_CAT_PATH: &str = "api/v0/cat";
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub struct IpfsConfig {
     // e.g.  https://ipfs.infura.io:5001
     pub base_url: String,
@@ -27,7 +26,7 @@ pub struct IpfsClient {
 
 impl IpfsClient {
     // e.g. https://ipfs.infura.io:5001/api/v0/cat
-    fn new(config_base_url: &str) -> Result<Self> {
+    pub fn new(config_base_url: &str) -> Result<Self> {
         if config_base_url.starts_with("https") {
             let cat_url = if !config_base_url.ends_with("/") {
                 config_base_url.to_owned() + "/"

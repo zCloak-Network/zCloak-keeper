@@ -8,26 +8,23 @@ pub use sp_core::{
 pub use codec::{Encode, Decode};
 use web3::contract::{Error as ContractError, tokens::Detokenize};
 use web3::ethabi::Token;
+pub use web3::{transports::Http, contract::{Contract, Options as Web3Options}};
 pub use moonbeam::{MoonbeamConfig, MoonbeamClient};
 pub use kilt::{KiltConfig, KiltClient};
 pub use ipfs::{IpfsConfig, IpfsClient};
+pub use config::Config;
+pub use error::Error;
 
 pub mod moonbeam;
 pub mod kilt;
 pub mod ipfs;
 pub mod error;
 pub mod verify;
+pub mod config;
 
 
 pub type Bytes32 = [u8; 32];
 pub type Result<T> = std::result::Result<T, (U64, error::Error)>;
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Config {
-    pub moonbeam: MoonbeamConfig,
-    pub ipfs: IpfsConfig,
-    pub kilt: KiltConfig,
-}
 
 // pub type ProofEventType = (Address, Bytes32, Bytes32, Bytes32, String, String, Bytes32, bool);
 
@@ -44,7 +41,7 @@ pub struct ProofEvent {
 }
 
 impl Detokenize for ProofEvent {
-    fn from_tokens(mut tokens: Vec<Token>) -> std::result::Result<Self, web3::contract::Error> {
+    fn from_tokens(tokens: Vec<Token>) -> std::result::Result<Self, web3::contract::Error> {
         if tokens.len() != 8 {
             return Err(ContractError::InvalidOutputType(format!(
                 "Expected {} elements, got a list of {}: {:?}",

@@ -1,7 +1,6 @@
-use std::os::unix::prelude::OsStringExt;
 use web3::contract::{Error as Web3ContractErr, Contract, tokens::{Tokenize, Detokenize} };
 pub use super::*;
-use web3::{self as web3, api::Eth, transports::{WebSocket, Http}, ethabi, Transport };
+use web3::{self as web3, api::Eth, transports::Http, ethabi, Transport };
 
 
 pub const MOONBEAM_SCAN_SPAN: usize = 10;
@@ -12,7 +11,7 @@ pub const MOONBEAM_TRANSACTION_CONFIRMATIONS: usize = 2;
 
 
 // TODO: transform
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub struct MoonbeamConfig {
     pub url: String,
     // where users add their proofs and emit `AddProof` event
@@ -22,21 +21,35 @@ pub struct MoonbeamConfig {
     pub private_key: String,
 }
 
-pub struct MoonbeamClient<T: Transport> {
-    inner: Web3<T>
+#[derive(Clone)]
+pub struct MoonbeamClient {
+    inner: Web3<Http>
 }
 
-impl<T: Transport> MoonbeamClient<T> {
+impl MoonbeamClient {
 
-    pub fn web3(self) -> Web3<T> {
-        self.inner
+    pub fn new(url: String) -> Result<Self> {
+        if url.starts_with("http") {
+            let web3 = Web3::new(Http::new(&url)?);
+            Ok( MoonbeamClient {inner: web3})
+        } else {
+            Err(Error::ClientCreationError("Wrong Moonbeam connection url".to_owned()))
+        }
     }
 
+    pub fn eth(&self) -> Eth<Http> {
+        self.inner.eth()
+    }
+
+    pub async fn best_number(&self) -> Result<U64> {
+        let maybe_best = self.inner.eth().block_number().await;
+        maybe_best.map_err(|e| e.into())
+    }
     // get proof contract
-    pub fn proof_contract(self, contract_addr: &str) -> Result<Contract<T>> {
+    pub fn proof_contract(&self, contract_addr: &str) -> Result<Contract<Http>> {
         let address = utils::trim_address_str(contract_addr)?;
         let contract = Contract::from_json(
-            self.web3().eth(),
+            self.inner.eth(),
             address,
             include_bytes!("../contracts/KiltProofs.json"),
         )?;
@@ -44,10 +57,10 @@ impl<T: Transport> MoonbeamClient<T> {
     }
 
     // get submit verification contract
-    pub fn aggregator_contract(self, contract_addr: &str) -> Result<Contract<T>> {
+    pub fn aggregator_contract(&self, contract_addr: &str) -> Result<Contract<Http>> {
         let address = utils::trim_address_str(contract_addr)?;
         let contract = Contract::from_json(
-            self.web3().eth(),
+            self.inner.eth(),
             address,
             include_bytes!("../contracts/SimpleAggregator.json"),
         )?;
@@ -64,7 +77,7 @@ pub mod utils {
         event: &str,
         from: Option<U64>,
         to: Option<U64>,
-    ) -> std::result::Result<Vec<(R, Log)>, Web3ContractErr> {
+    ) -> Result<Vec<(R, Log)>> {
         fn to_topic<A: Tokenize>(x: A) -> ethabi::Topic<ethabi::Token> {
             let tokens = x.into_tokens();
             if tokens.is_empty() {
@@ -138,11 +151,13 @@ pub mod utils {
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
+    #[error("Moonbeam connection Error: {0}")]
+    ClientCreationError(String),
     #[error("Web3 Client Error, err: {0}")]
     Web3Error(#[from] web3::Error),
 
     #[error("Web3 Contract Error, err: {0}")]
-    Web3ContractError(#[from] web3::contract::Error),
+    Web3ContractError(#[from] Web3ContractErr),
 
     #[error("Ethereum Abi Error, err: {0}")]
     EthAbiError(#[from] web3::ethabi::Error),

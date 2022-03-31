@@ -1,14 +1,18 @@
 use structopt::StructOpt;
+
 mod command;
-use crate::command::Opt;
+mod entry;
+
+use command::Opt;
+use keeper_primitives::Error;
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> std::result::Result<(), Error>{
     //TODO: init config
     let opt = Opt::from_args();
     match opt {
-        Opt::Server { options } => {
-            // TODO:
+        Opt::Start { options } => {
+            entry::start(options).await?
         },
     }
     Ok(())

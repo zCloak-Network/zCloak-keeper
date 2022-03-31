@@ -2,29 +2,22 @@ use structopt::StructOpt;
 use std::path::PathBuf;
 
 #[derive(Debug, StructOpt)]
-#[structopt(name = "verify", about = "zCloak server")]
+#[structopt(name = "zcloak Keeper", about = "zCloak keeper node start config")]
 pub enum Opt {
 
     ///start zCloak Server
-    Server {
+    Start {
         #[structopt(flatten)]
-        options: ServerOptions,
+        options: StartOptions,
     },
 }
 
 #[derive(Debug, Clone, StructOpt)]
-pub struct ServerOptions {
-    ///zCloak server listen host
-    #[structopt(short, long, default_value = "127.0.0.1")]
-    pub host: String,
-
-    ///zCloak server listen port
-    #[structopt(short, long, default_value = "3088")]
-    pub port: u32,
+pub struct StartOptions {
 
     ///The zCloak server config or data base path
     #[structopt(long, parse(from_os_str))]
-    pub base_path: Option<PathBuf>,
+    pub config: Option<PathBuf>,
 
     /// The starting block number of scanning node events.
     #[structopt(short, long)]
