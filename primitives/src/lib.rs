@@ -1,19 +1,24 @@
-pub use web3::types::{Address, U64, BlockNumber, Log, FilterBuilder};
-use web3::Web3;
-pub use serde::{Serialize, Deserialize};
+use std::collections::BTreeMap;
+
+pub use codec::{Decode, Encode};
+pub use serde::{Deserialize, Serialize};
 pub use sp_core::{
-    storage::{StorageData, StorageKey},
-    Bytes, H256 as Hash,
+    Bytes,
+    H256 as Hash, storage::{StorageData, StorageKey},
 };
-pub use codec::{Encode, Decode};
+pub use web3::{contract::{Contract, Options as Web3Options}, transports::Http};
 use web3::contract::{Error as ContractError, tokens::Detokenize};
 use web3::ethabi::Token;
-pub use web3::{transports::Http, contract::{Contract, Options as Web3Options}};
-pub use moonbeam::{MoonbeamConfig, MoonbeamClient};
-pub use kilt::{KiltConfig, KiltClient};
-pub use ipfs::{IpfsConfig, IpfsClient};
+pub use web3::types::{Address, BlockNumber, FilterBuilder, Log, U64};
+use web3::types::Res;
+use web3::Web3;
+
 pub use config::Config;
 pub use error::Error;
+pub use ipfs::{IpfsClient, IpfsConfig};
+pub use kilt::{KiltClient, KiltConfig};
+pub use moonbeam::{MoonbeamClient, MoonbeamConfig};
+pub use traits::JsonParse;
 
 pub mod moonbeam;
 pub mod kilt;
@@ -21,14 +26,14 @@ pub mod ipfs;
 pub mod error;
 pub mod verify;
 pub mod config;
+mod traits;
 
 
 pub type Bytes32 = [u8; 32];
 pub type Result<T> = std::result::Result<T, (U64, error::Error)>;
 
-// pub type ProofEventType = (Address, Bytes32, Bytes32, Bytes32, String, String, Bytes32, bool);
 
-#[derive(Debug, Default)]
+#[derive(PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
 pub struct ProofEvent {
     pub(crate) data_owner: Address,
     pub(crate) kilt_address: Bytes32,
@@ -62,7 +67,7 @@ impl Detokenize for ProofEvent {
                 field_name: proof_event_enum.4,
                 proof_cid: proof_event_enum.5,
                 root_hash: proof_event_enum.6,
-                expect_result: proof_event_enum.7
+                expect_result: proof_event_enum.7,
             }
         )
     }
@@ -106,6 +111,19 @@ impl ProofEvent {
 }
 
 
+pub type EventResult = BTreeMap<U64, Vec<ProofEvent>>;
+
+impl traits::JsonParse for EventResult {
+    fn into_json_str(self) -> serde_json::Result<Vec<u8>> {
+        serde_json::to_vec(&self)
+    }
+
+    fn from_json_str(json: &[u8]) -> Self {
+        serde_json::from_slice(json).unwrap()
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
 pub struct VerifyResult {
     pub number: U64,
     pub data_owner: Address,
@@ -129,3 +147,22 @@ impl VerifyResult {
 }
 
 
+#[cfg(test)]
+mod tests {
+    use crate::{EventResult, ProofEvent, traits::JsonParse};
+
+    #[test]
+    fn event_result_parse_should_work() {
+        let json_str = r#"{"0x1":[{"data_owner":"0x0000000000000000000000000000000000000000","kilt_address":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"c_type":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"program_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"field_name":"","proof_cid":"","root_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"expect_result":false}]}"#;
+        let mut test_event = EventResult::new();
+        test_event.entry(1.into()).or_insert(vec![ProofEvent::default()]);
+
+        let event_str = test_event.into_json_str().unwrap();
+        assert_eq!(std::str::from_utf8(&event_str).unwrap(), json_str);
+
+        let event_res = EventResult::from_json_str(json_str.as_bytes());
+        let event_res_value = event_res.get_key_value(&1u32.into()).unwrap().1;
+        let test_event_value = event_res.get_key_value(&1u32.into()).unwrap().1;
+        assert_eq!(*event_res_value, *test_event_value);
+    }
+}

@@ -43,20 +43,20 @@ pub struct KiltConfig {
     pub url: String,
 }
 
-pub enum KiltClient {
-    WebSocket(WsClient),
-    Http(HttpClient),
+#[derive(Clone)]
+pub struct KiltClient {
+    client: HttpClient,
 }
 
 impl KiltClient {
     pub async fn try_from_url(url: &str) -> Result<Self> {
-        if url.starts_with("ws://") || url.starts_with("wss://") {
-            let client =
-                WsClientBuilder::default().max_notifs_per_subscription(4096).build(url).await?;
-            Ok(KiltClient::WebSocket(client))
-        } else {
+        if url.starts_with("http://") || url.starts_with("https://") {
             let client = HttpClientBuilder::default().build(&url)?;
-            Ok(KiltClient::Http(client))
+            Ok(KiltClient {client} )
+        } else {
+            Err(
+                Error::UrlFormatError("Kilt client connection must start with http or https".to_owned())
+            )
         }
     }
 
@@ -67,12 +67,7 @@ impl KiltClient {
         hash: Option<Hash>,
     ) -> std::result::Result<Option<StorageData>, RpcError> {
         let params = vec![to_json_value(key)?, to_json_value(hash)?];
-        let data = match self {
-            Self::WebSocket(inner) =>
-                inner.request("state_getStorage", Some(params.into())).await?,
-
-            Self::Http(inner) => inner.request("state_getStorage", Some(params.into())).await?,
-        };
+        let data = self.client.request("state_getStorage", Some(params.into())).await?;
         Ok(data)
     }
 }
@@ -122,6 +117,8 @@ fn key_hash<K: Encode>(key: &K, hasher: &StorageHasher) -> Vec<u8> {
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
+    #[error("Wrong url initializing client connection, err: {0}")]
+    UrlFormatError(String),
     #[error("Kilt RPC Client Error, err: {0}")]
     KiltClientError(#[from] RpcError),
     /// Serde serialization error

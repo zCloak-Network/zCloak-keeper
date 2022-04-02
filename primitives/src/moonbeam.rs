@@ -181,18 +181,4 @@ mod tests {
         let bytes = include_bytes!("../contracts/KiltProofs.json");
         assert!(bytes.len() != 0);
     }
-
-    #[tokio::test]
-    async fn event_parse_should_work() {
-        let web3 = Web3::new(Http::new("http://localhost:8545").unwrap());
-        let bytecode = include_str!("../contracts/SimpleEvent.bin");
-        let accounts = web3.eth().accounts().await.unwrap();
-        let contract = Contract::deploy(web3.eth(), include_bytes!("../contracts/SimpleEvent.abi"))
-            .unwrap()
-            .confirmations(1)
-            .execute(bytecode, (), accounts[0])
-            .await
-            .unwrap();
-
-    }
 }

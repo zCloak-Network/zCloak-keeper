@@ -18,6 +18,7 @@ pub struct IpfsConfig {
 }
 
 // fixme: remove?
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub struct IpfsClient {
     // e.g.  https://ipfs.infura.io:5001/api/v0/cat
     pub cat_url_prefix: String
