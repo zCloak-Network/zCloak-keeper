@@ -1,19 +1,20 @@
 use std::os::macos::raw::stat;
 use std::str::FromStr;
 use std::sync::Arc;
+
 use secp256k1::SecretKey;
 use tokio::io;
+use tokio::sync::RwLock;
 use yaque::channel;
 
 use keeper_primitives::{Contract, Http, U64, VerifyResult};
 use keeper_primitives::{
-    Config, Error, JsonParse,
-    IpfsClient, KiltClient, MoonbeamClient, Result, EventResult
+    Config, Error, EventResult,
+    IpfsClient, JsonParse, KiltClient, MoonbeamClient, Result
 };
 use keeper_primitives::config::Error as ConfigError;
-use tokio::sync::OnceCell;
-use crate::command::StartOptions;
 
+use crate::command::StartOptions;
 
 #[derive(Clone)]
 pub struct ConfigInstance {
@@ -22,10 +23,9 @@ pub struct ConfigInstance {
     pub(crate) kilt_client: KiltClient,
     pub(crate) proof_contract: Contract<Http>,
     pub(crate) aggregator_contract: Contract<Http>,
-    pub(crate) private_key: SecretKey
+    pub(crate) private_key: SecretKey,
 }
 
-static CONFIG_INSTANCE: OnceCell<ConfigInstance> = OnceCell::const_new();
 
 const CHANNEL_LOG_TARGET: &str = "CHANNEL";
 
@@ -47,38 +47,29 @@ pub async fn start(
 
     let moonbeam_worker_pri = secp256k1::SecretKey::from_str(&config.moonbeam.private_key)?;
 
-    CONFIG_INSTANCE.get_or_init( || async {
-        ConfigInstance {
-            moonbeam_client: moonbeam_client,
-            ipfs_client: ipfs_client,
-            kilt_client: kilt_client,
-            proof_contract,
-            aggregator_contract,
-            private_key: moonbeam_worker_pri,
-        }
-    }).await;
+    let config_instance = ConfigInstance {
+        moonbeam_client: moonbeam_client,
+        ipfs_client: ipfs_client,
+        kilt_client: kilt_client,
+        proof_contract,
+        aggregator_contract,
+        private_key: moonbeam_worker_pri,
+    };
 
     // run a keeper
-    // loop {
-    //     run(
-    //         start,
-    //         &moonbeam_client,
-    //         &ipfs_client,
-    //         &kilt_client,
-    //         &proof_contract,
-    //         &aggregator_contract,
-    //         moonbeam_worker_pri,
-    //     ).await;
-    // }
+    run(
+        start,
+        Arc::new(RwLock::new(config_instance)),
+    ).await;
+
 
     Ok(())
-
 }
 
 // handle detailed process
 pub async fn run(
     start: U64,
-    configs: Arc<OnceCell<ConfigInstance>>
+    configs: Arc<RwLock<ConfigInstance>>,
 ) -> Result<()> {
     let mut start = start;
     let (mut event_sender, mut event_receiver) = channel("../data/event").unwrap();
@@ -89,16 +80,19 @@ pub async fn run(
     let config2 = configs.clone();
     let config3 = configs.clone();
     let config4 = configs.clone();
-    // TODO: use mq
+
     // 1. scan moonbeam proof event, and push them to event channel
     tokio::spawn(async move {
         // TODO: handle unwrap
-        let config = config1.get().unwrap();
+        let config = config1.read().await;
         loop {
             let res;
             let end;
             match moonbeam::scan_events(start, &config.moonbeam_client, &config.proof_contract).await {
-                Ok(r) => { res = r.0; end = r.1},
+                Ok(r) => {
+                    res = r.0;
+                    end = r.1
+                },
                 Err(e) => {
                     // repeat scanning from the start again
                     start = e.0;
@@ -139,8 +133,8 @@ pub async fn run(
     // 2. query ipfs and verify cid proof
     // TODO: seperate ipfs query end starksvm verify
     tokio::spawn(async move {
+        let config = config2.read().await;
         // TODO: handle unwrap
-        let config = config2.get().unwrap();
         while let Ok(events) = event_receiver.recv().await {
             // parse event from str to ProofEvent
             // TODO: handle error
@@ -167,8 +161,8 @@ pub async fn run(
     //
     // 3. query kilt
     tokio::spawn(async move {
+        let config = config3.read().await;
         // TODO: handle unwrap
-        let config = config3.get().unwrap();
         while let Ok(r) = attest_receiver.recv().await {
             // parse verify result from str to VerifyResult
             // TODO: handle error
@@ -194,12 +188,13 @@ pub async fn run(
 
     // 4. submit tx
     tokio::spawn(async move {
-        let config = config4.get().unwrap();
+        let config = config4.read().await;
         while let Ok(r) = submit_receiver.recv().await {
             // TODO: handle unwrap
             let inputs = serde_json::from_slice(&*r).unwrap();
             let res = moonbeam::submit_tx(&config.aggregator_contract, config.private_key, inputs)
-                .await;;
+                .await;
+            ;
             match res {
                 Ok(_) => {
                     r.commit();
