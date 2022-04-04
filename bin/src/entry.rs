@@ -1,4 +1,3 @@
-use std::os::macos::raw::stat;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -27,7 +26,8 @@ pub struct ConfigInstance {
 }
 
 
-const CHANNEL_LOG_TARGET: &str = "CHANNEL";
+const CHANNEL_LOG_TARGET: &str = "Channel";
+const MESSAGE_PARSE_LOG_TARGET: &str = "Message Parse";
 
 pub async fn start(
     start_options: StartOptions,
@@ -103,7 +103,7 @@ pub async fn run(
             if !res.is_empty() {
                 // send result to channel
                 // TODO: handle error
-                let output = res.into_json_str().unwrap();
+                let output = res.into_bytes().unwrap();
                 let status = event_sender.send(output).await;
                 if let Err(_) = status {
                     log::error!(
@@ -121,7 +121,7 @@ pub async fn run(
                     use tokio::time::{sleep, Duration};
                     sleep(Duration::from_secs(keeper_primitives::moonbeam::MOONBEAM_BLOCK_DURATION)).await;
                 }
-                // continue
+                // continue;
             }
 
             // reset scan start point
@@ -134,11 +134,22 @@ pub async fn run(
     // TODO: seperate ipfs query end starksvm verify
     tokio::spawn(async move {
         let config = config2.read().await;
-        // TODO: handle unwrap
+
         while let Ok(events) = event_receiver.recv().await {
             // parse event from str to ProofEvent
-            // TODO: handle error
-            let inputs = EventResult::from_json_str(&*events);
+            let inputs = EventResult::try_from_bytes(&*events);
+            let inputs = match inputs {
+                Ok(r) => r,
+                Err(e) => {
+                    // log error
+                    log::error!(target: MESSAGE_PARSE_LOG_TARGET,
+                    "event messages in ipfs component wrongly parsed, {:?}",
+                        e
+                    );
+                    continue
+                },
+            };
+
             let r = ipfs::query_and_verify(&config.ipfs_client, inputs).await;
             let res = match r {
                 Ok(v) => v,
@@ -147,10 +158,12 @@ pub async fn run(
             // TODO; handle unwrap
             let status = attest_sender.send(serde_json::to_vec(&res).unwrap()).await;
 
+
             match status {
                 Ok(_) => {
                     // delete events in channel after the events are successfully
                     // transformed and pushed into
+                    // TODO: what if write error?
                     events.commit();
                 },
                 Err(e) => continue,
@@ -162,11 +175,11 @@ pub async fn run(
     // 3. query kilt
     tokio::spawn(async move {
         let config = config3.read().await;
-        // TODO: handle unwrap
         while let Ok(r) = attest_receiver.recv().await {
             // parse verify result from str to VerifyResult
-            // TODO: handle error
+            // TODO: handle unwrap
             let inputs = serde_json::from_slice(&*r).unwrap();
+
             let res = kilt::filter(&config.kilt_client, inputs).await;
             let verify_res = match res {
                 Ok(r) => r,
@@ -174,6 +187,7 @@ pub async fn run(
             };
 
             // TODO: handle unwrap
+            let message_to_send = serde_json::to_vec(&verify_res);
             let status = submit_sender.send(serde_json::to_vec(&verify_res).unwrap()).await;
 
             match status {
@@ -192,6 +206,7 @@ pub async fn run(
         while let Ok(r) = submit_receiver.recv().await {
             // TODO: handle unwrap
             let inputs = serde_json::from_slice(&*r).unwrap();
+
             let res = moonbeam::submit_tx(&config.aggregator_contract, config.private_key, inputs)
                 .await;
             ;

@@ -1,7 +1,11 @@
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Config load Error, err: {0}")]
     ConfigLoadError(#[from] crate::config::Error),
+    //
+    #[error("Event Parse Error, err: {0}")]
+    EventParseError(#[from] serde_json::Error),
 
     #[error("Moonbeam Error, err: {0}")]
     MoonbeamError(#[from] crate::moonbeam::Error),

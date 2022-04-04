@@ -114,12 +114,12 @@ impl ProofEvent {
 pub type EventResult = BTreeMap<U64, Vec<ProofEvent>>;
 
 impl traits::JsonParse for EventResult {
-    fn into_json_str(self) -> serde_json::Result<Vec<u8>> {
-        serde_json::to_vec(&self)
+    fn into_bytes(self) -> std::result::Result<Vec<u8>, error::Error> {
+        serde_json::to_vec(&self).map_err(|e| e.into())
     }
 
-    fn from_json_str(json: &[u8]) -> Self {
-        serde_json::from_slice(json).unwrap()
+    fn try_from_bytes(json: &[u8]) -> std::result::Result<Self, error::Error> {
+        serde_json::from_slice(json).map_err(|e| e.into())
     }
 }
 
@@ -149,7 +149,7 @@ impl VerifyResult {
 
 #[cfg(test)]
 mod tests {
-    use crate::{EventResult, ProofEvent, traits::JsonParse};
+    use crate::{EventResult, ProofEvent, traits::JsonParse, VerifyResult};
 
     #[test]
     fn event_result_parse_should_work() {
@@ -164,5 +164,20 @@ mod tests {
         let event_res_value = event_res.get_key_value(&1u32.into()).unwrap().1;
         let test_event_value = event_res.get_key_value(&1u32.into()).unwrap().1;
         assert_eq!(*event_res_value, *test_event_value);
+    }
+
+    #[test]
+    fn verify_result_parse_should_work() {
+        let exp_verify_result_str = r#"{"number":"0x0","data_owner":"0x0000000000000000000000000000000000000000","root_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"c_type":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"program_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"is_passed":false}"#;
+        let exp_verify_result_bytes = exp_verify_result_str.as_bytes();
+        let v_res = VerifyResult::default();
+        let v_res_bytes = serde_json::to_vec(&v_res).unwrap();
+        assert_eq!(std::str::from_utf8(&v_res_bytes).unwrap(), exp_verify_result_str);
+
+        let v_res_str_decoded: VerifyResult = serde_json::from_str(&exp_verify_result_str).unwrap();
+        let v_res_bytes_decoded: VerifyResult = serde_json::from_slice(&v_res_bytes).unwrap();
+        assert_eq!(v_res_bytes_decoded, v_res);
+        assert_eq!(v_res_str_decoded, v_res);
+
     }
 }
