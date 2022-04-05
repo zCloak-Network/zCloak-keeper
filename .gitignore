@@ -2,4 +2,4 @@
 **/target
 .vscode
 .idea
-**/task-moonbeam.toml
+**/config.json

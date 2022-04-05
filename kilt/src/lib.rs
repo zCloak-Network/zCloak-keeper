@@ -18,7 +18,7 @@ pub async fn filter(
         if r {
             v.push(i)
         } else {
-            log::error!(
+            log::warn!(
                 target: LOG_TARGET,
                 "[kilt] attestaion is not valid for this root_hash|root_hash:{:}|data owner:{:}|number:{:}",
                 hex::encode(i.root_hash), hex::encode(i.data_owner.0), i.number);
@@ -26,6 +26,16 @@ pub async fn filter(
     }
     Ok(v)
 }
+
+// TODO: remove
+pub async fn filter_mock(
+    // client: &KiltClient,
+    result: Vec<VerifyResult>,
+) -> Result<Vec<VerifyResult>> {
+
+    Ok(result)
+}
+
 
 
 /// query attestation info from kilt network

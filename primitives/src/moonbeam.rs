@@ -21,7 +21,7 @@ pub struct MoonbeamConfig {
     pub private_key: String,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MoonbeamClient {
     inner: Web3<Http>
 }
@@ -51,7 +51,7 @@ impl MoonbeamClient {
         let contract = Contract::from_json(
             self.inner.eth(),
             address,
-            include_bytes!("../contracts/KiltProofs.json"),
+            include_bytes!("../contracts/ProofStorage.json"),
         )?;
         Ok(contract)
     }
@@ -178,7 +178,7 @@ mod tests {
     #[test]
     fn test_cargo_env_variables() {
         let contract_name = "KiltProofs";
-        let bytes = include_bytes!("../contracts/KiltProofs.json");
+        let bytes = include_bytes!("../contracts/ProofStorage.json");
         assert!(bytes.len() != 0);
     }
 }

@@ -185,6 +185,7 @@ dependencies = [
  "component-kilt",
  "component-moonbeam",
  "config",
+ "futures-timer",
  "keeper-primitives",
  "log",
  "microkv",

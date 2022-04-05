@@ -37,6 +37,7 @@ pub type Result<T> = std::result::Result<T, (U64, error::Error)>;
 pub struct ProofEvent {
     pub(crate) data_owner: Address,
     pub(crate) kilt_address: Bytes32,
+    pub(crate) attester: Bytes32,
     pub(crate) c_type: Bytes32,
     pub(crate) program_hash: Bytes32,
     pub(crate) field_name: String,
@@ -45,9 +46,14 @@ pub struct ProofEvent {
     pub(crate) expect_result: bool,
 }
 
+// # of elements in AddProof event
+const EVENT_LEN: usize = 9;
+// TODO: make it config
+pub type ProofEventEnum = (Address, Bytes32, Bytes32, Bytes32, Bytes32, String, String, Bytes32, bool);
+
 impl Detokenize for ProofEvent {
     fn from_tokens(tokens: Vec<Token>) -> std::result::Result<Self, web3::contract::Error> {
-        if tokens.len() != 8 {
+        if tokens.len() != EVENT_LEN {
             return Err(ContractError::InvalidOutputType(format!(
                 "Expected {} elements, got a list of {}: {:?}",
                 8,
@@ -55,19 +61,19 @@ impl Detokenize for ProofEvent {
                 tokens
             )));
         }
-        // TODO: make it config
-        pub type ProofEventEnum = (Address, Bytes32, Bytes32, Bytes32, String, String, Bytes32, bool);
+
         let proof_event_enum = ProofEventEnum::from_tokens(tokens)?;
         Ok(
             ProofEvent {
                 data_owner: proof_event_enum.0,
                 kilt_address: proof_event_enum.1,
-                c_type: proof_event_enum.2,
-                program_hash: proof_event_enum.3,
-                field_name: proof_event_enum.4,
-                proof_cid: proof_event_enum.5,
-                root_hash: proof_event_enum.6,
-                expect_result: proof_event_enum.7,
+                attester: proof_event_enum.2,
+                c_type: proof_event_enum.3,
+                program_hash: proof_event_enum.4,
+                field_name: proof_event_enum.5,
+                proof_cid: proof_event_enum.6,
+                root_hash: proof_event_enum.7,
+                expect_result: proof_event_enum.8,
             }
         )
     }

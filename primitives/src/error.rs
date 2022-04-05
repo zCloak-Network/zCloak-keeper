@@ -10,12 +10,6 @@ pub enum Error {
     #[error("Moonbeam Error, err: {0}")]
     MoonbeamError(#[from] crate::moonbeam::Error),
 
-    // #[error("Web3 Error, err: {0}")]
-    // Web3Error(#[from] web3::Error),
-    //
-    // #[error("Web3 Contract Error, err: {0}")]
-    // Web3ContractError(#[from] web3::contract::Error),
-
     #[error("Fetch IPFS Error, err: {0}")]
     IpfsError(#[from] crate::ipfs::Error),
 

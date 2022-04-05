@@ -1,12 +1,12 @@
 {
   "moonbeam": {
-    "url": "http://127.0.0.1",
-    "read_contract": "mock_read_contract",
-    "write_contract": "mock_write_contract",
-    "private_key": "0xxxx"
+    "url": "http://127.0.0.1:8545",
+    "read_contract": "0xA95C9fAA7D155E4513531A6B160FCD423dFa49b6",
+    "write_contract": "0x356d707590142cb7a4A0E49Bd5321F13747F3530",
+    "private_key": "3afc4c4f35f413922000853e519c8ed7bb4ef6eb43c90c34e9e96e41476385d3"
   },
   "ipfs": {
-    "base_url": "ipfs_mock_url"
+    "base_url": "https://ipfs.infura.io:5001"
   },
   "kilt": {
     "url": "mock_kilt_url"
