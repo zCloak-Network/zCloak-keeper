@@ -21,6 +21,9 @@ tokio = { version = "1", features = ["full"] }
 config = "0.11"
 structopt = "0.3"
 secp256k1 = { version = "0.20", features = ["recovery"]}
+env_logger = "0.9.0"
+
+futures-timer = "*"
 
 #msq
 yaque = "0.6.3"

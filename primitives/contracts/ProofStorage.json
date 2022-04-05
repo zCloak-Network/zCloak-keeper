@@ -2,13 +2,8 @@
     {
       "inputs": [
         {
-          "internalType": "address",
+          "internalType": "contract IRegistry",
           "name": "_registry",
-          "type": "address"
-        },
-        {
-          "internalType": "address",
-          "name": "_request",
           "type": "address"
         }
       ],
@@ -21,8 +16,44 @@
         {
           "indexed": false,
           "internalType": "address",
-          "name": "cOwner",
+          "name": "dataOwner",
           "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "kiltAddress",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "attester",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "cType",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "programHash",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "fieldName",
+          "type": "string"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "proofCid",
+          "type": "string"
         },
         {
           "indexed": false,
@@ -32,12 +63,31 @@
         },
         {
           "indexed": false,
+          "internalType": "bytes32",
+          "name": "rootHash",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
           "internalType": "bool",
-          "name": "isPassed",
+          "name": "expectResult",
           "type": "bool"
         }
       ],
-      "name": "Canonical",
+      "name": "AddProof",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "attester",
+          "type": "bytes32"
+        }
+      ],
+      "name": "AttesterApproved",
       "type": "event"
     },
     {
@@ -64,43 +114,6 @@
         }
       ],
       "name": "LogSetOwner",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "address",
-          "name": "cOwner",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes32",
-          "name": "requestHash",
-          "type": "bytes32"
-        },
-        {
-          "indexed": false,
-          "internalType": "address",
-          "name": "worker",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes32",
-          "name": "attester",
-          "type": "bytes32"
-        },
-        {
-          "indexed": false,
-          "internalType": "bool",
-          "name": "isPassed",
-          "type": "bool"
-        }
-      ],
-      "name": "Verifying",
       "type": "event"
     },
     {
@@ -183,6 +196,19 @@
     },
     {
       "inputs": [],
+      "name": "NULL",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
       "name": "UINT32_MIN_COMMIT",
       "outputs": [
         {
@@ -208,6 +234,54 @@
       "type": "function"
     },
     {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "_kiltAccount",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_attester",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_cType",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "string",
+          "name": "_fieldName",
+          "type": "string"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_programHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "string",
+          "name": "_proofCid",
+          "type": "string"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_rootHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bool",
+          "name": "_expResult",
+          "type": "bool"
+        }
+      ],
+      "name": "addProof",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
       "inputs": [],
       "name": "authority",
       "outputs": [
@@ -224,98 +298,16 @@
       "inputs": [
         {
           "internalType": "bytes32",
-          "name": "_rootHash",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "bool",
-          "name": "_isPassed",
-          "type": "bool"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "_attester",
+          "name": "",
           "type": "bytes32"
         }
       ],
-      "name": "getOutputHash",
+      "name": "kiltAddr2Addr",
       "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "oHash",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "pure",
-      "type": "function"
-    },
-    {
-      "inputs": [
         {
           "internalType": "address",
-          "name": "_keeper",
+          "name": "",
           "type": "address"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "_requestHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "hasSubmitted",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "_who",
-          "type": "address"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "_requestHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "isValid",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "requestHash",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "attester",
-          "type": "bytes32"
-        }
-      ],
-      "name": "judgeAttester",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
         }
       ],
       "stateMutability": "view",
@@ -335,13 +327,24 @@
       "type": "function"
     },
     {
-      "inputs": [],
-      "name": "registry",
-      "outputs": [
+      "inputs": [
         {
-          "internalType": "contract IRegistry",
+          "internalType": "address",
           "name": "",
           "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "proofs",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
         }
       ],
       "stateMutability": "view",
@@ -349,10 +352,10 @@
     },
     {
       "inputs": [],
-      "name": "request",
+      "name": "registry",
       "outputs": [
         {
-          "internalType": "contract IRequest",
+          "internalType": "contract IRegistry",
           "name": "",
           "type": "address"
         }
@@ -390,12 +393,36 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "_cOwner",
+          "name": "_who",
           "type": "address"
         },
         {
           "internalType": "bytes32",
           "name": "_requestHash",
+          "type": "bytes32"
+        }
+      ],
+      "name": "single_proof_exists",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "_kiltAccount",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_attester",
           "type": "bytes32"
         },
         {
@@ -404,22 +431,32 @@
           "type": "bytes32"
         },
         {
+          "internalType": "string",
+          "name": "_fieldName",
+          "type": "string"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_programHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "string",
+          "name": "_proofCid",
+          "type": "string"
+        },
+        {
           "internalType": "bytes32",
           "name": "_rootHash",
           "type": "bytes32"
         },
         {
           "internalType": "bool",
-          "name": "_verifyRes",
+          "name": "_expResult",
           "type": "bool"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "_attester",
-          "type": "bytes32"
         }
       ],
-      "name": "submit",
+      "name": "update_proof",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

@@ -1,0 +1,10 @@
+[moonbeam]
+url = "https://rpc.moonbeam.zcloak.network/"
+contract = "0x72AcB0f573287B3eE0375964D220158cD18465cb"
+private_key = "779782a9534e6ef57b57001af3b960c0607451a7414e8c88208386dff10b812c"
+
+[ipfs]
+base_url = "http://ipfs.infura.io:5001"
+
+[kilt]
+url = "wss://peregrine.kilt.io:443"
