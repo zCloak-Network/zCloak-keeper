@@ -157,10 +157,10 @@ mod tests {
         let mut test_event = EventResult::new();
         test_event.entry(1.into()).or_insert(vec![ProofEvent::default()]);
 
-        let event_str = test_event.into_json_str().unwrap();
+        let event_str = test_event.into_bytes().unwrap();
         assert_eq!(std::str::from_utf8(&event_str).unwrap(), json_str);
 
-        let event_res = EventResult::from_json_str(json_str.as_bytes());
+        let event_res = EventResult::try_from_bytes(json_str.as_bytes()).unwrap();
         let event_res_value = event_res.get_key_value(&1u32.into()).unwrap().1;
         let test_event_value = event_res.get_key_value(&1u32.into()).unwrap().1;
         assert_eq!(*event_res_value, *test_event_value);

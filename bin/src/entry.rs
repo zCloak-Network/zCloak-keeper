@@ -4,7 +4,7 @@ use std::sync::Arc;
 use secp256k1::SecretKey;
 use tokio::io;
 use tokio::sync::RwLock;
-use yaque::channel;
+use yaque::{channel, recovery};
 
 use keeper_primitives::{Contract, Http, U64, VerifyResult};
 use keeper_primitives::{
@@ -14,6 +14,14 @@ use keeper_primitives::{
 use keeper_primitives::config::Error as ConfigError;
 
 use crate::command::StartOptions;
+
+// TODO: move to config
+const CHANNEL_LOG_TARGET: &str = "Channel";
+const MESSAGE_PARSE_LOG_TARGET: &str = "Message Parse";
+
+const EVENT_TO_IPFS_CHANNEL: &str = "./data/event2ipfs";
+const VERIFY_TO_ATTEST_CHANNEL: &str = "./data/verify2attest";
+const ATTEST_TO_SUBMIT_CHANNEL: &str = "./data/attest2submit";
 
 #[derive(Clone)]
 pub struct ConfigInstance {
@@ -26,8 +34,6 @@ pub struct ConfigInstance {
 }
 
 
-const CHANNEL_LOG_TARGET: &str = "Channel";
-const MESSAGE_PARSE_LOG_TARGET: &str = "Message Parse";
 
 pub async fn start(
     start_options: StartOptions,
@@ -72,17 +78,25 @@ pub async fn run(
     configs: Arc<RwLock<ConfigInstance>>,
 ) -> Result<()> {
     let mut start = start;
-    let (mut event_sender, mut event_receiver) = channel("../data/event").unwrap();
-    let (mut attest_sender, mut attest_receiver) = channel("../data/attestation").unwrap();
-    let (mut submit_sender, mut submit_receiver) = channel("../data/submit").unwrap();
+    let (mut event_sender, mut event_receiver) = channel(EVENT_TO_IPFS_CHANNEL).unwrap();
+    let (mut attest_sender, mut attest_receiver) = channel(VERIFY_TO_ATTEST_CHANNEL).unwrap();
+    let (mut submit_sender, mut submit_receiver) = channel(ATTEST_TO_SUBMIT_CHANNEL).unwrap();
 
     let config1 = configs.clone();
     let config2 = configs.clone();
     let config3 = configs.clone();
     let config4 = configs.clone();
 
+    // force recover all channels, which delete all '.lock' files
+    recovery::unlock_queue(EVENT_TO_IPFS_CHANNEL);
+    recovery::unlock_queue(VERIFY_TO_ATTEST_CHANNEL);
+    recovery::unlock_queue(ATTEST_TO_SUBMIT_CHANNEL);
+
     // 1. scan moonbeam proof event, and push them to event channel
-    tokio::spawn(async move {
+    let task_scan = tokio::spawn(async move {
+        // recover first if locked
+
+
         // TODO: handle unwrap
         let config = config1.read().await;
         loop {
@@ -132,7 +146,7 @@ pub async fn run(
 
     // 2. query ipfs and verify cid proof
     // TODO: seperate ipfs query end starksvm verify
-    tokio::spawn(async move {
+    let task_ipfs_verify = tokio::spawn(async move {
         let config = config2.read().await;
 
         while let Ok(events) = event_receiver.recv().await {
@@ -173,7 +187,7 @@ pub async fn run(
 
     //
     // 3. query kilt
-    tokio::spawn(async move {
+    let task_kilt_attest = tokio::spawn(async move {
         let config = config3.read().await;
         while let Ok(r) = attest_receiver.recv().await {
             // parse verify result from str to VerifyResult
@@ -201,7 +215,7 @@ pub async fn run(
 
 
     // 4. submit tx
-    tokio::spawn(async move {
+    let task_submit_tx = tokio::spawn(async move {
         let config = config4.read().await;
         while let Ok(r) = submit_receiver.recv().await {
             // TODO: handle unwrap
@@ -219,7 +233,9 @@ pub async fn run(
         }
     });
 
+    // TODO: handle error
+    tokio::try_join!(task_scan, task_ipfs_verify, task_kilt_attest, task_submit_tx);
+
     Ok(())
 }
-
 
