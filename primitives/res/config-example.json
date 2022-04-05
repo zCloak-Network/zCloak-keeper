@@ -1,0 +1,15 @@
+{
+  "moonbeam": {
+    "url": "http://127.0.0.1:7545",
+    "read_contract": "read_contract",
+    "write_contract": "write_contract",
+    "private_key": "private_key"
+  },
+  "ipfs": {
+    "base_url": "https://ipfs.infura.io:5001"
+  },
+  "kilt": {
+    "url": "mock_kilt_url"
+  }
+}
+

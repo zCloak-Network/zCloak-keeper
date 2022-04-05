@@ -58,6 +58,12 @@
         {
           "indexed": false,
           "internalType": "bytes32",
+          "name": "requestHash",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
           "name": "rootHash",
           "type": "bytes32"
         },
@@ -69,37 +75,6 @@
         }
       ],
       "name": "AddProof",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "address",
-          "name": "dataOwner",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "address",
-          "name": "worker",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes32",
-          "name": "rootHash",
-          "type": "bytes32"
-        },
-        {
-          "indexed": false,
-          "internalType": "bool",
-          "name": "isPassed",
-          "type": "bool"
-        }
-      ],
-      "name": "AddVerification",
       "type": "event"
     },
     {
