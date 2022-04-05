@@ -1,77 +1,107 @@
-# zCloak Worker
+# zCloak Keeper
 
-[![GitHub issues](https://img.shields.io/github/issues/zcloak-network/zcloak-worker)](https://github.com/zCloak-network/zCloak-worker/issues) [![GitHub forks](https://img.shields.io/github/forks/zcloak-network/zcloak-worker)](https://github.com/zCloak-Network/zCloak-worker/network) [![GitHub license](https://img.shields.io/github/license/zcloak-network/zcloak-worker)](https://github.com/zCloak-Network/zCloak-worker/blob/main/LICENSE)
+[![GitHub issues](https://img.shields.io/github/issues/zcloak-network/zcloak-keeper)](https://github.com/zCloak-network/zCloak-keeper/issues) [![GitHub forks](https://img.shields.io/github/forks/zcloak-network/zcloak-keeper)](https://github.com/zCloak-Network/zCloak-keeper/network) [![GitHub license](https://img.shields.io/github/license/zcloak-network/zcloak-keeper)](https://github.com/zCloak-Network/zCloak-keeper/blob/main/LICENSE)
 
-zCloak Worker is Verify Server Client which provides Zero-knowledge Proof for many chains,such as zCloak Network,Polkadot Network etc(base on substrate frame).
+zCloak Keeper is the verifier client which provides Zero-knowledge Proof for many chains,such as zCloak Network, Polkadot Network etc(base on substrate frame).
 
-zCloak Worker will multiple chains in the future.
+zCloak Keeper will integrate with multiple chains in the future.
+
+## Components
+**component-moonbeam**
+- scan moonbeam addProof events
+- submit transaction back to moonbeam
+
+**component-ipfs**
+- query raw proof bytes on ipfs and decode it to `StarkProof`
+- stark verify the proof and output the verify result
+
+**component-kilt**
+- check the validity of the credential through rootHash
+
+## Process
+The workflow of zCloak keeper is:
+1. keep scanning AddProof event on moonbeam
+2. get the cid out of the event scanned and fetch the raw proof bytes
+3. parse the raw proof bytes into `StarkProof`
+4. verify the `StarkProof` with StarkVM verifier and output `rootHash` and `isPassed`
+5. query the attester address and the validity of user's credential from Kilt Network
+6. submit the validity, attester and verify result back to moonbeam
+
+## Todos in near future
+-[ ] introduce database
+-[ ] enhance message queue utility
+
+## Future Plan
+- integrate with other evm-compatible chains
+- introduce p2p and raw consensus
+- introduce threshold signature
+
 
 ## Installation
 
 ### Download from GitHub
-Download the binary from [main branch](https://github.com/zCloak-Network/zCloak-worker).
+Download the binary from [main branch](https://github.com/zCloak-Network/zCloak-keeper).
 
 ### Build from source
 ```
-git clone git@github.com:zCloak-Network/zCloak-worker.git
-cd zCloak-worker/
+git clone git@github.com:zCloak-Network/zCloak-keeper.git
+cd zCloak-keeper/
 cargo build --release
 ```
 
 ## Surpport Chain
-| chain name | frame | doc |
-| ---------- | ----- | ----- |
-| zCloak Network | substrate | [Usage](./tast/../task/task-zcloak-substrate/docs/Usage.md) |
+| chain name | frame | doc   |
+|------------| ----- |-------|
+| Moonbeam   | substrate | [WIP] |
 
 Some Networks which based on substrate want to provide Zero-knowledge Proof should dependend starks verifier seperate pallet in runtime.
 
 
 ## Usage
-zcloak-worker --help
+zcloak-keeper --help
 
 ```
-$ zcloak-worker
-verify 0.1.0
-zCloak worker
+zcloak Keeper 0.1.0
+zCloak keeper node start config
 
 USAGE:
-    zcloak-worker <SUBCOMMAND>
+    zcloak-keeper <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
     -V, --version    Prints version information
 
 SUBCOMMANDS:
-    crypto    Crypto help command
-    help      Prints this message or the help of the given subcommand(s)
-    kv        The kv db storage operation
-    server    start zCloak Worker Server
-    task      Task Manager
+    help     Prints this message or the help of the given subcommand(s)
+    start    start zCloak Server
 ```
 
-start zCloak Worker
+start zCloak Keeper
 
-```
-$ zcloak-worker server
+for instance:
+```bash
+zcloak-keeper start --config ./config.json --start-number 100
 ```
 
+```bash
+$ zcloak-keeper start --help
 ```
-$zcloak-worker server --help
-zcloak-worker-server 0.1.0
-start zCloak Worker
+
+```bash
+zcloak-keeper-start 0.1.0
+start zCloak Server
 
 USAGE:
-    zcloak-worker server [OPTIONS]
+    zcloak-keeper start [OPTIONS]
 
 FLAGS:
-        --help       Prints help information
+    -h, --help       Prints help information
     -V, --version    Prints version information
 
 OPTIONS:
-        --base-path <base-path>    The zCloak worker config or data base path
-    -h, --host <host>              zCloak worker listen host [default: 127.0.0.1]
-    -p, --port <port>              zCloak worker listen port [default: 3088]
+        --config <config>                The zCloak server config or data base path
+    -s, --start-number <start-number>    The starting block number of scanning node events
 ```
 
-- `--base-path` zCloak Worker's config 、database will store in this  path.
-- `--host` `--port` the zCloak Worker host and port
+- `--config` the path of zCloak keeper's config file
+- `-s` or `--start-number` where to start the moonbeam series networks scan
