@@ -10,21 +10,22 @@ use serde::{Deserialize, Serialize};
 
 use sp_runtime::AccountId32 as AccountId;
 
-//fixme: make generic
-pub type Balance = u128;
-
+pub const KILT_LOG_TARGET: &str = "KILT";
 const ATTESTATION_PALLET_PREFIX: &'static str = "Attestation";
 const ATTESTATION_STORAGE_PREFIX: &'static str = "Attestations";
 const HASHER: StorageHasher = StorageHasher::Blake2_128Concat;
 pub const KILT_MAX_RETRY_TIMES: usize = 5;
 
-#[derive(Default, Clone, Debug, Encode, Decode, PartialEq)]
+//fixme: make generic
+pub type Balance = u128;
+
+#[derive(Default, Clone, Debug, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub struct Deposit<Account, Balance> {
 	pub owner: Account,
 	pub amount: Balance,
 }
 
-#[derive(Default, Clone, Debug, Encode, Decode, PartialEq)]
+#[derive(Default, Clone, Debug, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub struct AttestationDetails<Hash: Encode + Clone, Account, Balance> {
 	pub ctype_hash: Hash,
 	pub attester: Account,
@@ -40,7 +41,7 @@ pub struct KiltConfig {
 	pub url: String,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct KiltClient {
 	client: HttpClient,
 }

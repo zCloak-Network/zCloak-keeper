@@ -16,6 +16,7 @@ pub const MOONBEAM_SCAN_SPAN: usize = 10;
 pub const MOONBEAM_LISTENED_EVENT: &'static str = "AddProof";
 pub const MOONBEAM_BLOCK_DURATION: u64 = 12;
 pub const MOONBEAM_TRANSACTION_CONFIRMATIONS: usize = 2;
+pub const MOONBEAM_LOG_TARGET: &str = "Moonbeam";
 
 // TODO: transform
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]

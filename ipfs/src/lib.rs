@@ -1,14 +1,11 @@
 use std::collections::BTreeMap;
 
 use keeper_primitives::{
-	ipfs::IpfsClient,
+	ipfs::{IpfsClient, IPFS_LOG_TARGET},
 	moonbeam::ProofEvent,
-	verify::{verify_proof, Result},
+	verify::{verify_proof, Result, VERIFY_LOG_TARGET},
 	Result as KeeperResult, VerifyResult, U64,
 };
-
-const IPFS_LOG_TARGET: &str = "IPFS";
-const VERIFY_LOG_TARGET: &str = "VERIFY";
 
 pub async fn query_and_verify(
 	ipfs: &IpfsClient,

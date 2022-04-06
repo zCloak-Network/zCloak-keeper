@@ -1,13 +1,14 @@
-use std::{str::FromStr, sync::Arc, time::Duration};
-
+use futures_timer::Delay;
 use log::log;
 use secp256k1::SecretKey;
+use std::{str::FromStr, sync::Arc, time::Duration};
 use tokio::{io, sync::RwLock};
 use yaque::{channel, recovery};
 
 use keeper_primitives::{
-	config::Error as ConfigError, Config, Contract, Error, EventResult, Http, IpfsClient,
-	JsonParse, KiltClient, MoonbeamClient, Result, VerifyResult, U64,
+	config::Error as ConfigError, ipfs::IPFS_LOG_TARGET, kilt::KILT_LOG_TARGET,
+	moonbeam::MOONBEAM_LOG_TARGET, verify::VERIFY_LOG_TARGET, Config, Contract, Error, EventResult,
+	Http, IpfsClient, JsonParse, KiltClient, MoonbeamClient, Result, VerifyResult, U64,
 };
 
 use crate::command::StartOptions;
@@ -24,7 +25,7 @@ const ATTEST_TO_SUBMIT_CHANNEL: &str = "./data/attest2submit";
 pub struct ConfigInstance {
 	pub(crate) moonbeam_client: MoonbeamClient,
 	pub(crate) ipfs_client: IpfsClient,
-	// pub(crate) kilt_client: KiltClient,
+	pub(crate) kilt_client: KiltClient,
 	pub(crate) proof_contract: Contract<Http>,
 	pub(crate) aggregator_contract: Contract<Http>,
 	pub(crate) private_key: SecretKey,
@@ -43,7 +44,7 @@ pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error
 	// init config
 	let moonbeam_client = MoonbeamClient::new(config.moonbeam.url)?;
 	let ipfs_client = IpfsClient::new(&config.ipfs.base_url)?;
-	// let kilt_client = KiltClient::try_from_url(&config.kilt.url).await?;
+	let kilt_client = KiltClient::try_from_url(&config.kilt.url).await?;
 
 	let proof_contract = moonbeam_client.proof_contract(&config.moonbeam.read_contract)?;
 	let aggregator_contract =
@@ -54,7 +55,7 @@ pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error
 	let config_instance = ConfigInstance {
 		moonbeam_client,
 		ipfs_client,
-		// kilt_client: KiltClient::default(),
+		kilt_client,
 		proof_contract,
 		aggregator_contract,
 		private_key: moonbeam_worker_pri,
@@ -68,6 +69,7 @@ pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error
 
 // handle detailed process
 pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> Result<()> {
+	// it record the latest block that contains proofevents
 	let mut start = start;
 	// force recover all channels, which delete all '.lock' files
 	recovery::unlock_queue(EVENT_TO_IPFS_CHANNEL);
@@ -86,15 +88,42 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> Result<()>
 
 	// 1. scan moonbeam proof event, and push them to event channel
 	let task_scan = tokio::spawn(async move {
-		// recover first if locked
 		// TODO: handle unwrap
+		let mut tmp_start_cache = 0.into();
 		let config = config1.read().await;
 		loop {
-			// TODO something error for best pick start:20, res:{23
+			let maybe_best = config.moonbeam_client.best_number().await;
+			let best = match maybe_best {
+				Ok(b) => b,
+				Err(e) => {
+					log::error!(
+						target: MOONBEAM_LOG_TARGET,
+						"Fail to get latest block number in task moonbeam scan, after #{:?} scanned",
+						start
+					);
+					continue
+				},
+			};
+
+			if (start == tmp_start_cache) && (start == best) {
+				// do nothing here
+				log::info!(
+					target: MOONBEAM_LOG_TARGET,
+					"Skip scanning, the latest block #{:} is already scanned",
+					start
+				);
+				continue
+			}
+
 			let res;
 			let end;
-			match moonbeam::scan_events(start, &config.moonbeam_client, &config.proof_contract)
-				.await
+			match moonbeam::scan_events(
+				start,
+				best,
+				&config.moonbeam_client,
+				&config.proof_contract,
+			)
+			.await
 			{
 				Ok(r) => {
 					res = r.0;
@@ -121,8 +150,10 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> Result<()>
 					);
 					// repeat scanning from the start again
 					continue
-					// TODO: what if the hit in the latest block
 				}
+				// After the proofevent list successfully sent to task2
+				// reset the tmp_start_cache
+				tmp_start_cache = end;
 			} else {
 				let latest = &config.moonbeam_client.best_number().await.unwrap_or_default();
 				if start == *latest {
@@ -143,12 +174,10 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> Result<()>
 	});
 
 	// 2. query ipfs and verify cid proof
-	// TODO: seperate ipfs query end starksvm verify
+	// TODO: separate ipfs query end starksvm verify
 	let task_ipfs_verify = tokio::spawn(async move {
 		let config = config2.read().await;
 
-		use futures_timer::Delay;
-		use std::time::Duration;
 		while let Ok(events) = event_receiver.recv_timeout(Delay::new(Duration::from_secs(1))).await
 		{
 			// while let Ok(events) = event_receiver.recv().await {
@@ -156,7 +185,10 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> Result<()>
 				Some(a) => a,
 				None => continue,
 			};
+
+			// TODO; remove
 			log::debug!("recv msg in task2");
+
 			// parse event from str to ProofEvent
 			let inputs = EventResult::try_from_bytes(&*events);
 			let inputs = match inputs {
@@ -186,7 +218,6 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> Result<()>
 					// delete events in channel after the events are successfully
 					// transformed and pushed into
 					// TODO: what if write error?
-
 					events.commit().expect("not commit for task2");
 				},
 				Err(e) => {
@@ -202,9 +233,6 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> Result<()>
 	let task_kilt_attest = tokio::spawn(async move {
 		let config = config3.read().await;
 
-		use futures_timer::Delay;
-		use std::time::Duration;
-
 		while let Ok(r) = attest_receiver.recv_timeout(Delay::new(Duration::from_secs(1))).await {
 			// while let Ok(events) = event_receiver.recv().await {
 			let r = match r {
@@ -216,21 +244,23 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> Result<()>
 			// TODO: handle unwrap
 			let inputs = serde_json::from_slice(&*r).expect("serde json error");
 
-			let res = kilt::filter_mock(inputs).await;
+			let res = kilt::filter(&config.kilt_client, inputs).await;
 			let verify_res = match res {
 				Ok(r) => r,
 				Err(_) => continue,
 			};
 
-			// TODO: handle unwrap
-			let message_to_send = serde_json::to_vec(&verify_res);
-			let status = submit_sender.send(message_to_send.unwrap()).await;
+			if !verify_res.is_empty() {
+				// TODO: handle unwrap
+				let message_to_send = serde_json::to_vec(&verify_res);
+				let status = submit_sender.send(message_to_send.unwrap()).await;
 
-			match status {
-				Ok(_) => {
-					r.commit().expect("not commit in task3");
-				},
-				Err(e) => continue,
+				match status {
+					Ok(_) => {
+						r.commit().expect("not commit in task3");
+					},
+					Err(e) => continue,
+				}
 			}
 		}
 	});
@@ -238,9 +268,6 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> Result<()>
 	// 4. submit tx
 	let task_submit_tx = tokio::spawn(async move {
 		let config = config4.read().await;
-
-		use futures_timer::Delay;
-		use std::time::Duration;
 
 		while let Ok(r) = submit_receiver.recv_timeout(Delay::new(Duration::from_secs(1))).await {
 			// while let Ok(events) = event_receiver.recv().await {
@@ -254,7 +281,7 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> Result<()>
 			let inputs = serde_json::from_slice(&*r).unwrap();
 
 			let res =
-				moonbeam::submit_tx(&config.aggregator_contract, config.private_key, inputs).await;
+				moonbeam::submit_txs(&config.aggregator_contract, config.private_key, inputs).await;
 			match res {
 				Ok(_) => {
 					r.commit().expect("not commit in task4");
@@ -264,10 +291,7 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> Result<()>
 		}
 	});
 
-	log::info!("spawn all tasks");
-
 	// TODO: handle error
 	tokio::try_join!(task_scan, task_ipfs_verify, task_kilt_attest, task_submit_tx);
-	log::info!("finish all tasks");
 	Ok(())
 }

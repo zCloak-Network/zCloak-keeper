@@ -9,7 +9,7 @@
     "base_url": "https://ipfs.infura.io:5001"
   },
   "kilt": {
-    "url": "mock_kilt_url"
+    "url": "kilt_url"
   }
 }
 

@@ -18,6 +18,7 @@ pub use web3::{
 	types::{Address, BlockNumber, FilterBuilder, Log, U64},
 };
 
+use crate::kilt::Attestation;
 pub use config::Config;
 pub use error::Error;
 pub use ipfs::{IpfsClient, IpfsConfig};
@@ -36,7 +37,7 @@ pub mod verify;
 pub type Bytes32 = [u8; 32];
 pub type Result<T> = std::result::Result<T, (U64, error::Error)>;
 
-#[derive(PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
 pub struct ProofEvent {
 	pub(crate) data_owner: Address,
 	pub(crate) kilt_address: Bytes32,
@@ -84,6 +85,14 @@ impl Detokenize for ProofEvent {
 }
 
 impl ProofEvent {
+	pub fn request_hash(&self) -> Bytes32 {
+		self.request_hash
+	}
+
+	pub fn root_hash(&self) -> Bytes32 {
+		self.root_hash
+	}
+
 	pub fn proof_cid(&self) -> &str {
 		self.proof_cid.as_str()
 	}
@@ -131,7 +140,7 @@ impl traits::JsonParse for EventResult {
 	}
 }
 
-#[derive(PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
 pub struct VerifyResult {
 	pub number: U64,
 	pub data_owner: Address,
@@ -156,6 +165,17 @@ impl VerifyResult {
 			is_passed: passed,
 		}
 	}
+
+	// if the credential is revoked by attester, do nothing and return error
+	pub fn update_from_attestation(&mut self, attest: Attestation) -> std::result::Result<(), ()> {
+		if !attest.revoked {
+			self.c_type = Bytes32::from(attest.ctype_hash);
+			self.attester = Bytes32::from(attest.attester);
+			Ok(())
+		} else {
+			Err(())
+		}
+	}
 }
 
 #[cfg(test)]
@@ -164,7 +184,7 @@ mod tests {
 
 	#[test]
 	fn event_result_parse_should_work() {
-		let json_str = r#"{"0x1":[{"data_owner":"0x0000000000000000000000000000000000000000","kilt_address":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"c_type":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"program_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"field_name":"","proof_cid":"","root_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"expect_result":false}]}"#;
+		let json_str = r#"{"0x1":[{"data_owner":"0x0000000000000000000000000000000000000000","kilt_address":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"attester":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"c_type":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"program_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"field_name":"","proof_cid":"","request_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"root_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"expect_result":false}]}"#;
 		let mut test_event = EventResult::new();
 		test_event.entry(1.into()).or_insert(vec![ProofEvent::default()]);
 
@@ -179,7 +199,7 @@ mod tests {
 
 	#[test]
 	fn verify_result_parse_should_work() {
-		let exp_verify_result_str = r#"{"number":"0x0","data_owner":"0x0000000000000000000000000000000000000000","root_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"c_type":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"program_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"is_passed":false}"#;
+		let exp_verify_result_str = r#"{"number":"0x0","data_owner":"0x0000000000000000000000000000000000000000","root_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"c_type":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"program_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"request_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"attester":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"is_passed":false}"#;
 		let exp_verify_result_bytes = exp_verify_result_str.as_bytes();
 		let v_res = VerifyResult::default();
 		let v_res_bytes = serde_json::to_vec(&v_res).unwrap();

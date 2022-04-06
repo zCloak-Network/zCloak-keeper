@@ -2,6 +2,8 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
+pub const IPFS_LOG_TARGET: &str = "IPFS";
+
 // ipfs max retry times
 const IPFS_MAX_RETRY_TIMES: usize = 5;
 const TIME_OUT: Duration = Duration::from_secs(5);

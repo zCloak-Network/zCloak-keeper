@@ -1,5 +1,7 @@
 use starksVM as stark;
 
+pub const VERIFY_LOG_TARGET: &str = "StarkVerify";
+
 pub fn verify_proof(
 	program_hash: &[u8; 32],
 	body: &[u8],
