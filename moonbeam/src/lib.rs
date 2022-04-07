@@ -69,6 +69,7 @@ pub async fn scan_events(
 			log::warn!(target: MOONBEAM_LOG_TARGET, "Moonbeam log blocknumber should not be None");
 			Default::default()
 		});
+
 		result.entry(number).or_insert(vec![]).push(proof_event.clone().into());
 		log::info!(
 			target: MOONBEAM_LOG_TARGET,
@@ -97,7 +98,7 @@ pub async fn submit_txs(
 	let worker_address = key_ref.address();
 	for v in res {
 		// TODO: read multiple times?
-		let r: bool = contract
+		let has_submitted: bool = contract
 			.query(
 				"hasSubmitted",
 				(worker_address, v.request_hash),
@@ -106,14 +107,26 @@ pub async fn submit_txs(
 				None,
 			)
 			.await?;
+
+		let is_finished: bool = contract
+			.query(
+				"isFinished",
+				(v.data_owner, v.request_hash),
+				None,
+				Web3Options::default(),
+				None,
+			)
+			.await?;
+
 		log::info!(
 			target: MOONBEAM_LOG_TARGET,
-			"[Moonbeam] hasSubmitted result for request hash [{:?}] is {}",
+			"[Moonbeam] hasSubmitted result for request hash [{:?}] is {}, isFinished result is {:}",
 			v.request_hash,
-			r
+			has_submitted,
+			is_finished
 		);
 
-		if !r {
+		if !has_submitted && !is_finished {
 			let r = contract
 				.signed_call_with_confirmations(
 					"submit",
@@ -132,18 +145,21 @@ pub async fn submit_txs(
 				Ok(r) => {
 					log::info!(
 						target: MOONBEAM_LOG_TARGET,
-						"[moonbeam] Successfully submit verification|tx:{:}|data owner:{:}|root_hash:{:}",
+						"[moonbeam] Successfully submit verification|tx:{:}|data owner:{:}|root_hash:{:}|is_passed: {:}|attester: {:}",
 						r.transaction_hash,
 						v.data_owner,
-						hex::encode(v.root_hash)
+						hex::encode(v.root_hash),
+						v.is_passed,
+						hex::encode(v.attester),
 					)
 				},
 				Err(e) => {
 					log::error!(
 						target: MOONBEAM_LOG_TARGET,
-						"[moonbeam] Error submit verification |data owner:{:}|root_hash:{:}, err: {:?}",
+						"[moonbeam] Error submit verification |data owner:{:}|root_hash:{:}|request_hash: {:}, err: {:?}",
 						v.data_owner,
 						hex::encode(v.root_hash),
+						hex::encode(v.request_hash),
 						e
 					)
 				},

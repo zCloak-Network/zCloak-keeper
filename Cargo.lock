@@ -187,6 +187,7 @@ dependencies = [
  "config",
  "env_logger 0.9.0",
  "futures-timer",
+ "hex",
  "keeper-primitives",
  "log",
  "microkv",

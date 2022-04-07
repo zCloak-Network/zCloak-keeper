@@ -180,10 +180,12 @@ impl VerifyResult {
 
 #[cfg(test)]
 mod tests {
-	use crate::{traits::JsonParse, EventResult, ProofEvent, VerifyResult};
+	use crate::{traits::JsonParse, Bytes32, EventResult, ProofEvent, VerifyResult};
+	use std::str::FromStr;
+	use web3::types::Address;
 
 	#[test]
-	fn event_result_parse_should_work() {
+	fn fake_event_result_parse_should_work() {
 		let json_str = r#"{"0x1":[{"data_owner":"0x0000000000000000000000000000000000000000","kilt_address":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"attester":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"c_type":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"program_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"field_name":"","proof_cid":"","request_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"root_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"expect_result":false}]}"#;
 		let mut test_event = EventResult::new();
 		test_event.entry(1.into()).or_insert(vec![ProofEvent::default()]);
@@ -209,5 +211,102 @@ mod tests {
 		let v_res_bytes_decoded: VerifyResult = serde_json::from_slice(&v_res_bytes).unwrap();
 		assert_eq!(v_res_bytes_decoded, v_res);
 		assert_eq!(v_res_str_decoded, v_res);
+	}
+
+	#[test]
+	fn true_event_result_parse_should_work() {
+		let json_str = r#"{"0x21":[{"data_owner":"0x127221418abcd357022d29f62449d98d9610dfab","kilt_address":[107,105,108,116,65,99,99,111,117,110,116,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"attester":[76,253,46,114,43,55,11,16,21,52,58,39,201,120,152,21,216,3,253,177,132,10,170,4,6,162,107,229,90,149,255,1],"c_type":[127,46,247,33,178,146,185,183,214,120,233,248,42,176,16,225,57,96,5,88,223,128,91,188,97,160,4,30,96,182,26,24],"program_hash":[138,207,143,54,219,208,64,124,237,34,124,151,249,241,188,249,137,198,175,253,50,35,26,213,106,54,233,223,205,73,38,16],"field_name":"age","proof_cid":"QmUn4UfXdv7uJXerqy1PMfnXxYuM3xfpUC8pFZaVyJoN7H","request_hash":[94,173,49,247,138,238,243,148,66,124,21,189,107,13,78,210,69,212,74,170,249,110,90,37,128,46,16,119,10,76,17,117],"root_hash":[175,110,140,119,75,15,116,9,116,63,126,40,226,159,211,25,109,14,238,114,198,110,87,197,80,48,42,190,164,51,105,51],"expect_result":true}]}"#;
+		let mut test_event = EventResult::new();
+
+		test_event.entry(33.into()).or_insert(vec![]).push(ProofEvent {
+			data_owner: Address::from_str("0x127221418abcd357022d29f62449d98d9610dfab")
+				.expect("wrong address"),
+			kilt_address: [
+				107, 105, 108, 116, 65, 99, 99, 111, 117, 110, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			],
+			attester: [
+				76, 253, 46, 114, 43, 55, 11, 16, 21, 52, 58, 39, 201, 120, 152, 21, 216, 3, 253,
+				177, 132, 10, 170, 4, 6, 162, 107, 229, 90, 149, 255, 1,
+			],
+			c_type: [
+				127, 46, 247, 33, 178, 146, 185, 183, 214, 120, 233, 248, 42, 176, 16, 225, 57, 96,
+				5, 88, 223, 128, 91, 188, 97, 160, 4, 30, 96, 182, 26, 24,
+			],
+			program_hash: [
+				138, 207, 143, 54, 219, 208, 64, 124, 237, 34, 124, 151, 249, 241, 188, 249, 137,
+				198, 175, 253, 50, 35, 26, 213, 106, 54, 233, 223, 205, 73, 38, 16,
+			],
+			field_name: "age".to_string(),
+			proof_cid: "QmUn4UfXdv7uJXerqy1PMfnXxYuM3xfpUC8pFZaVyJoN7H".to_string(),
+			request_hash: [
+				94, 173, 49, 247, 138, 238, 243, 148, 66, 124, 21, 189, 107, 13, 78, 210, 69, 212,
+				74, 170, 249, 110, 90, 37, 128, 46, 16, 119, 10, 76, 17, 117,
+			],
+			root_hash: [
+				175, 110, 140, 119, 75, 15, 116, 9, 116, 63, 126, 40, 226, 159, 211, 25, 109, 14,
+				238, 114, 198, 110, 87, 197, 80, 48, 42, 190, 164, 51, 105, 51,
+			],
+			expect_result: true,
+		});
+
+		let event_str = test_event.into_bytes().unwrap();
+		assert_eq!(std::str::from_utf8(&event_str).unwrap(), json_str);
+
+		let event_res = EventResult::try_from_bytes(json_str.as_bytes()).unwrap();
+		let event_res_value = event_res.get_key_value(&33.into()).unwrap().1;
+		let test_event_value = event_res.get_key_value(&33.into()).unwrap().1;
+		assert_eq!(*event_res_value, *test_event_value);
+	}
+
+	#[test]
+	fn bytes32_segament_parse_should_correct() {
+		// 6b696c744163636f756e74000000000000000000000000000000000000000000
+		let kilt_address_slice = [
+			107, 105, 108, 116, 65, 99, 99, 111, 117, 110, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0,
+		];
+		// 4cfd2e722b370b1015343a27c9789815d803fdb1840aaa0406a26be55a95ff01
+		let attester_slice = [
+			76, 253, 46, 114, 43, 55, 11, 16, 21, 52, 58, 39, 201, 120, 152, 21, 216, 3, 253, 177,
+			132, 10, 170, 4, 6, 162, 107, 229, 90, 149, 255, 1,
+		];
+		// 7f2ef721b292b9b7d678e9f82ab010e139600558df805bbc61a0041e60b61a18
+		let c_type_slice = [
+			127, 46, 247, 33, 178, 146, 185, 183, 214, 120, 233, 248, 42, 176, 16, 225, 57, 96, 5,
+			88, 223, 128, 91, 188, 97, 160, 4, 30, 96, 182, 26, 24,
+		];
+		// 8acf8f36dbd0407ced227c97f9f1bcf989c6affd32231ad56a36e9dfcd492610
+		let program_hash_slice = [
+			138, 207, 143, 54, 219, 208, 64, 124, 237, 34, 124, 151, 249, 241, 188, 249, 137, 198,
+			175, 253, 50, 35, 26, 213, 106, 54, 233, 223, 205, 73, 38, 16,
+		];
+		let request_hash_slice = [
+			94, 173, 49, 247, 138, 238, 243, 148, 66, 124, 21, 189, 107, 13, 78, 210, 69, 212, 74,
+			170, 249, 110, 90, 37, 128, 46, 16, 119, 10, 76, 17, 117,
+		];
+		// af6e8c774b0f7409743f7e28e29fd3196d0eee72c66e57c550302abea4336933
+		let root_hash_slice = [
+			175, 110, 140, 119, 75, 15, 116, 9, 116, 63, 126, 40, 226, 159, 211, 25, 109, 14, 238,
+			114, 198, 110, 87, 197, 80, 48, 42, 190, 164, 51, 105, 51,
+		];
+
+		// variables stored in zcloak-contracts/srcipts/variables.js
+		assert_eq!(
+			hex::encode(attester_slice),
+			"4cfd2e722b370b1015343a27c9789815d803fdb1840aaa0406a26be55a95ff01"
+		);
+		assert_eq!(
+			hex::encode(c_type_slice),
+			"7f2ef721b292b9b7d678e9f82ab010e139600558df805bbc61a0041e60b61a18"
+		);
+		assert_eq!(
+			hex::encode(program_hash_slice),
+			"8acf8f36dbd0407ced227c97f9f1bcf989c6affd32231ad56a36e9dfcd492610"
+		);
+		assert_eq!(
+			hex::encode(root_hash_slice),
+			"af6e8c774b0f7409743f7e28e29fd3196d0eee72c66e57c550302abea4336933"
+		);
 	}
 }

@@ -18,7 +18,7 @@ pub const MOONBEAM_BLOCK_DURATION: u64 = 12;
 pub const MOONBEAM_TRANSACTION_CONFIRMATIONS: usize = 2;
 pub const MOONBEAM_LOG_TARGET: &str = "Moonbeam";
 
-// TODO: transform
+
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub struct MoonbeamConfig {
 	pub url: String,
@@ -77,6 +77,7 @@ impl MoonbeamClient {
 
 pub mod utils {
 	use super::*;
+	// todo: test if if can filter event due to contract address
 	pub async fn events<T: Transport, R: Detokenize>(
 		web3: Eth<T>,
 		contract: &Contract<T>,
@@ -92,7 +93,6 @@ pub mod utils {
 				tokens.into()
 			}
 		}
-
 		let res = contract.abi().event(event).and_then(|ev| {
 			let filter = ev.filter(ethabi::RawTopicFilter {
 				topic0: to_topic(()),

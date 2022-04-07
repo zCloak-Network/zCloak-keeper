@@ -23,4 +23,7 @@ pub enum Error {
 
 	#[error("Parse private Error, err: {0}")]
 	PrivateKeyError(#[from] secp256k1::Error),
+
+	#[error("Task error, err: {0}")]
+	TaskJoinError(#[from] tokio::task::JoinError),
 }

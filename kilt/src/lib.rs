@@ -41,13 +41,6 @@ pub async fn filter(client: &KiltClient, result: Vec<VerifyResult>) -> Result<Ve
 	Ok(v)
 }
 
-// TODO: remove
-pub async fn filter_mock(
-	// client: &KiltClient,
-	result: Vec<VerifyResult>,
-) -> Result<Vec<VerifyResult>> {
-	Ok(result)
-}
 
 /// query attestation info from kilt network
 /// TODO: handle kilt error??
