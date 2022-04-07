@@ -12,12 +12,13 @@ use keeper_primitives::{
 };
 
 // scan moonbeam events
+
 pub async fn scan_events(
 	mut start: U64,
 	best: U64,
 	client: &MoonbeamClient,
 	proof_contract: &Contract<Http>,
-) -> KeeperResult<(BTreeMap<U64, Vec<ProofEvent>>, U64)> {
+) -> KeeperResult<(Option<BTreeMap<U64, Vec<ProofEvent>>>, U64)> {
 	// if start > best, reset `start` pointer to best
 	if start > best {
 		log::warn!(
@@ -63,29 +64,36 @@ pub async fn scan_events(
 
 	let hit = r.len();
 
-	let mut result = BTreeMap::<U64, Vec<ProofEvent>>::default();
-	for (proof_event, log) in r {
-		let number = log.block_number.unwrap_or_else(|| {
-			log::warn!(target: MOONBEAM_LOG_TARGET, "Moonbeam log blocknumber should not be None");
-			Default::default()
-		});
+	if hit != 0 {
+		let mut result = BTreeMap::<U64, Vec<ProofEvent>>::default();
+		for (proof_event, log) in r {
+			let number = log.block_number.unwrap_or_else(|| {
+				log::warn!(target: MOONBEAM_LOG_TARGET, "Moonbeam log blocknumber should not be None");
+				// TODO: any situation that block_number could be None?
+				Default::default()
+			});
 
-		result.entry(number).or_insert(vec![]).push(proof_event.clone().into());
-		log::info!(
+			result.entry(number).or_insert(vec![]).push(proof_event.clone().into());
+			log::info!(
 			target: MOONBEAM_LOG_TARGET,
 			"[Moonbeam] event contains request hash: {:} | root hash: {:} has been recorded",
 			hex::encode(proof_event.request_hash()),
 			hex::encode(proof_event.root_hash())
-		);
+			);
+
+			log::info!(
+				"scan from [{:}] - [{:}] | hit:[{:}] | in blocks: {:?}",
+				start,
+				end,
+				hit,
+				result.keys().into_iter().map(|n| *n).collect::<Vec<U64>>()
+			);
+		}
+
+		Ok((Some(result), end))
+	} else {
+		Ok((None, end))
 	}
-	log::info!(
-		"scan from [{:}] - [{:}] | hit:[{:}] | in blocks: {:?}",
-		start,
-		end,
-		hit,
-		result.keys().into_iter().map(|n| *n).collect::<Vec<U64>>()
-	);
-	Ok((result, end))
 }
 
 pub async fn submit_txs(
@@ -93,7 +101,6 @@ pub async fn submit_txs(
 	worker: SecretKey,
 	res: Vec<VerifyResult>,
 ) -> std::result::Result<(), keeper_primitives::moonbeam::Error> {
-	log::info!(target: MOONBEAM_LOG_TARGET, "[Moonbeam] submitting the tx");
 	let key_ref = SecretKeyRef::new(&worker);
 	let worker_address = key_ref.address();
 	for v in res {

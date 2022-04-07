@@ -114,32 +114,21 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> std::resul
 				continue
 			}
 
-			let res;
-			let end;
-			match moonbeam::scan_events(
+
+			// only throw err if event parse error
+			// todo: could return and throw error instead of expect
+			let (res, end) = moonbeam::scan_events(
 				start,
 				best,
 				&config.moonbeam_client,
 				&config.proof_contract,
 			)
-			.await
-			{
-				Ok(r) => {
-					res = r.0;
-					end = r.1
-				},
-				Err(e) => {
-					// repeat scanning from the start again
-					start = e.0;
-					log::error!(target: MOONBEAM_LOG_TARGET,
-						"scan events error: {:?}", e);
-					continue
-				},
-			}
+			.await.expect("Event parse error");
 
-			if !res.is_empty() {
+			if res.is_some() {
 				// send result to channel
-				let output = res.into_bytes().expect("proofs encode into bytes error in task moonbeam scan");
+				// unwrap MUST succeed
+				let output = res.unwrap().into_bytes().expect("proofs encode into bytes error in task moonbeam scan");
 
 				let status = event_sender.send(output).await;
 				if let Err(_) = status {
@@ -251,7 +240,7 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> std::resul
 
 			if !verify_res.is_empty() {
 				let message_to_send = serde_json::to_vec(&verify_res);
-				let status = submit_sender.send(message_to_send.unwrap()).await.expect("[Task attestation] Fail to send msg to next task.");
+				submit_sender.send(message_to_send.unwrap()).await.expect("[Task attestation] Fail to send msg to next task.");
 
 				r.commit().expect("msg not commit in task attestation");
 			}
