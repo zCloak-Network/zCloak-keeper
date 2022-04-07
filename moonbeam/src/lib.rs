@@ -120,7 +120,7 @@ pub async fn submit_txs(
 
 		log::info!(
 			target: MOONBEAM_LOG_TARGET,
-			"[Moonbeam] hasSubmitted result for request hash [{:?}] is {}, isFinished result is {:}",
+			"hasSubmitted result for request hash [{:?}] is {}, isFinished result is {:}",
 			v.request_hash,
 			has_submitted,
 			is_finished
@@ -145,7 +145,7 @@ pub async fn submit_txs(
 				Ok(r) => {
 					log::info!(
 						target: MOONBEAM_LOG_TARGET,
-						"[moonbeam] Successfully submit verification|tx:{:}|data owner:{:}|root_hash:{:}|is_passed: {:}|attester: {:}",
+						"Successfully submit verification|tx:{:}|data owner:{:}|root_hash:{:}|is_passed: {:}|attester: {:}",
 						r.transaction_hash,
 						v.data_owner,
 						hex::encode(v.root_hash),
@@ -156,7 +156,7 @@ pub async fn submit_txs(
 				Err(e) => {
 					log::error!(
 						target: MOONBEAM_LOG_TARGET,
-						"[moonbeam] Error submit verification |data owner:{:}|root_hash:{:}|request_hash: {:}, err: {:?}",
+						"Error submit verification |data owner:{:}|root_hash:{:}|request_hash: {:}, err: {:?}",
 						v.data_owner,
 						hex::encode(v.root_hash),
 						hex::encode(v.request_hash),

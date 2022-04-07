@@ -11,7 +11,7 @@ pub async fn query_and_verify(
 	ipfs: &IpfsClient,
 	input: BTreeMap<U64, Vec<ProofEvent>>,
 ) -> KeeperResult<Vec<VerifyResult>> {
-	log::info!(target: IPFS_LOG_TARGET, "[IPFS] start querying ipfs");
+	log::info!(target: IPFS_LOG_TARGET, "start querying ipfs");
 	let mut ret = vec![];
 	for (number, proofs) in input {
 		for proof in proofs {
@@ -19,7 +19,7 @@ pub async fn query_and_verify(
 				ipfs.fetch_proof(proof.proof_cid()).await.map_err(|e| (number, e.into()))?;
 			log::info!(
 				target: IPFS_LOG_TARGET,
-				"[IPFS] ipfs proof fetched and the content length is {}",
+				"ipfs proof fetched and the content length is {}",
 				cid_context.len()
 			);
 			// if verify meet error, do not throw it.
@@ -29,7 +29,7 @@ pub async fn query_and_verify(
 						// TODO set to database in future
 						log::info!(
                             target: VERIFY_LOG_TARGET,
-                            "[verify] verify zkStark from cid context failed|event_blocknumber:{:}|cid:{:}",
+                            "verify zkStark from cid context failed|event_blocknumber:{:}|cid:{:}",
                             number, proof.proof_cid());
 					}
 					r
@@ -37,7 +37,7 @@ pub async fn query_and_verify(
 				Err(e) => {
 					log::error!(
 						target: VERIFY_LOG_TARGET,
-						"[verify] verify zkStark inner error|e:{:?}|event_blocknumber:{:}|cid:{:}",
+						"verify zkStark inner error|e:{:?}|event_blocknumber:{:}|cid:{:}",
 						e,
 						number,
 						proof.proof_cid(),

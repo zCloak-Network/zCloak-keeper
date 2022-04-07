@@ -35,14 +35,13 @@ pub struct ConfigInstance {
 pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error> {
 	// load config
 	let start: U64 = start_options.start_number.unwrap_or_default().into();
-	dbg!(start);
 	let config_path = start_options.config.ok_or::<Error>(
 		ConfigError::OtherError("Config File need to be specific".to_owned()).into(),
 	)?;
 	let config = Config::load_from_json(&config_path)?;
 
 	log::info!("[Config] load successfully!");
-	// init config
+	// init config，
 	let moonbeam_client = MoonbeamClient::new(config.moonbeam.url)?;
 	let ipfs_client = IpfsClient::new(&config.ipfs.base_url)?;
 	let kilt_client = KiltClient::try_from_url(&config.kilt.url).await?;
@@ -63,7 +62,7 @@ pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error
 	};
 
 	// run a keeper
-	run(start, Arc::new(RwLock::new(config_instance))).await;
+	run(start, Arc::new(RwLock::new(config_instance))).await?;
 
 	Ok(())
 }
@@ -74,9 +73,9 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> std::resul
 	// used in ganache
 	let mut start = start;
 	// force recover all channels, which delete all '.lock' files
-	recovery::unlock_queue(EVENT_TO_IPFS_CHANNEL);
-	recovery::unlock_queue(VERIFY_TO_ATTEST_CHANNEL);
-	recovery::unlock_queue(ATTEST_TO_SUBMIT_CHANNEL);
+	recovery::unlock_queue(EVENT_TO_IPFS_CHANNEL).expect("fail to unlock event2ipfs channel");
+	recovery::unlock_queue(VERIFY_TO_ATTEST_CHANNEL).expect("fail to unlock verify2attestation channel");
+	recovery::unlock_queue(ATTEST_TO_SUBMIT_CHANNEL).expect("fail to unlock attestation2submit channel");
 
 	let (mut event_sender, mut event_receiver) = channel(EVENT_TO_IPFS_CHANNEL).unwrap();
 	let (mut attest_sender, mut attest_receiver) = channel(VERIFY_TO_ATTEST_CHANNEL).unwrap();
@@ -100,8 +99,9 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> std::resul
 				Err(e) => {
 					log::error!(
 						target: MOONBEAM_LOG_TARGET,
-						"Fail to get latest block number in task moonbeam scan, after #{:?} scanned",
-						start
+						"Fail to get latest block number in task moonbeam scan, after #{:?} scanned, err is {:?}",
+						start,
+						 e
 					);
 					continue
 				},
@@ -131,6 +131,8 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> std::resul
 				Err(e) => {
 					// repeat scanning from the start again
 					start = e.0;
+					log::error!(target: MOONBEAM_LOG_TARGET,
+						"scan events error: {:?}", e);
 					continue
 				},
 			}
@@ -201,7 +203,14 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> std::resul
 			let r = ipfs::query_and_verify(&config.ipfs_client, inputs).await;
 			let res = match r {
 				Ok(v) => v,
-				Err(e) => continue,
+				Err(e) => {
+					log::error!(
+						// TODO: log target?
+						"[IPFS_AND_VERIFY] encounter error: {:?}",
+						e
+					);
+					continue
+				},
 			};
 			let status = attest_sender.send(serde_json::to_vec(&res).unwrap()).await;
 
@@ -242,14 +251,9 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> std::resul
 
 			if !verify_res.is_empty() {
 				let message_to_send = serde_json::to_vec(&verify_res);
-				let status = submit_sender.send(message_to_send.unwrap()).await;
+				let status = submit_sender.send(message_to_send.unwrap()).await.expect("[Task attestation] Fail to send msg to next task.");
 
-				match status {
-					Ok(_) => {
-						r.commit().expect("msg not commit in task attestation");
-					},
-					Err(e) => continue,
-				}
+				r.commit().expect("msg not commit in task attestation");
 			}
 		}
 	});
@@ -274,7 +278,13 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> std::resul
 				Ok(_) => {
 					r.commit().expect("fail to commit in task moonbeam submission");
 				},
-				Err(e) => continue,
+				Err(e) => {
+					log::error!(
+						target: MOONBEAM_LOG_TARGET,
+						"Fail to submit moonbeam tx, err: {:?}",
+						e
+					);
+				},
 			};
 		}
 	});
