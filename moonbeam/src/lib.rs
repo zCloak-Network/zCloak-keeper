@@ -68,17 +68,20 @@ pub async fn scan_events(
 		let mut result = BTreeMap::<U64, Vec<ProofEvent>>::default();
 		for (proof_event, log) in r {
 			let number = log.block_number.unwrap_or_else(|| {
-				log::warn!(target: MOONBEAM_LOG_TARGET, "Moonbeam log blocknumber should not be None");
+				log::warn!(
+					target: MOONBEAM_LOG_TARGET,
+					"Moonbeam log blocknumber should not be None"
+				);
 				// TODO: any situation that block_number could be None?
 				Default::default()
 			});
 
 			result.entry(number).or_insert(vec![]).push(proof_event.clone().into());
 			log::info!(
-			target: MOONBEAM_LOG_TARGET,
-			"[Moonbeam] event contains request hash: {:} | root hash: {:} has been recorded",
-			hex::encode(proof_event.request_hash()),
-			hex::encode(proof_event.root_hash())
+				target: MOONBEAM_LOG_TARGET,
+				"[Moonbeam] event contains request hash: {:} | root hash: {:} has been recorded",
+				hex::encode(proof_event.request_hash()),
+				hex::encode(proof_event.root_hash())
 			);
 
 			log::info!(
@@ -116,13 +119,7 @@ pub async fn submit_txs(
 			.await?;
 
 		let is_finished: bool = contract
-			.query(
-				"isFinished",
-				(v.data_owner, v.request_hash),
-				None,
-				Web3Options::default(),
-				None,
-			)
+			.query("isFinished", (v.data_owner, v.request_hash), None, Web3Options::default(), None)
 			.await?;
 
 		log::info!(

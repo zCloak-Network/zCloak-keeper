@@ -41,7 +41,6 @@ pub async fn filter(client: &KiltClient, result: Vec<VerifyResult>) -> Result<Ve
 	Ok(v)
 }
 
-
 /// query attestation info from kilt network
 /// TODO: handle kilt error??
 pub async fn query_attestation(

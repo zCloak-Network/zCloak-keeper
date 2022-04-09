@@ -68,19 +68,26 @@ pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error
 }
 
 // handle detailed process
-pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> std::result::Result<(), keeper_primitives::Error> {
+pub async fn run(
+	start: U64,
+	configs: Arc<RwLock<ConfigInstance>>,
+) -> std::result::Result<(), keeper_primitives::Error> {
 	// it record the latest block that contains proofevents
 	// used in ganache
 	let mut start = start;
 	// force recover all channels, which delete all '.lock' files
 	recovery::unlock_queue(EVENT_TO_IPFS_CHANNEL).expect("fail to unlock event2ipfs channel");
-	recovery::unlock_queue(VERIFY_TO_ATTEST_CHANNEL).expect("fail to unlock verify2attestation channel");
-	recovery::unlock_queue(ATTEST_TO_SUBMIT_CHANNEL).expect("fail to unlock attestation2submit channel");
+	recovery::unlock_queue(VERIFY_TO_ATTEST_CHANNEL)
+		.expect("fail to unlock verify2attestation channel");
+	recovery::unlock_queue(ATTEST_TO_SUBMIT_CHANNEL)
+		.expect("fail to unlock attestation2submit channel");
 
 	let (mut event_sender, mut event_receiver) = channel(EVENT_TO_IPFS_CHANNEL).unwrap();
 	let (mut attest_sender, mut attest_receiver) = channel(VERIFY_TO_ATTEST_CHANNEL).unwrap();
 	let (mut submit_sender, mut submit_receiver) = channel(ATTEST_TO_SUBMIT_CHANNEL).unwrap();
 
+	// alert message sending
+	// let (monitor_sender, monitor_receiver) = tokio::sync::mpsc::channel();
 	// spead configs
 	let config1 = configs.clone();
 	let config2 = configs.clone();
@@ -92,7 +99,6 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> std::resul
 		let mut tmp_start_cache = 0.into();
 		let config = config1.read().await;
 		loop {
-
 			let maybe_best = config.moonbeam_client.best_number().await;
 			let best = match maybe_best {
 				Ok(b) => b,
@@ -114,21 +120,20 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> std::resul
 				continue
 			}
 
-
 			// only throw err if event parse error
 			// todo: could return and throw error instead of expect
-			let (res, end) = moonbeam::scan_events(
-				start,
-				best,
-				&config.moonbeam_client,
-				&config.proof_contract,
-			)
-			.await.expect("Event parse error");
+			let (res, end) =
+				moonbeam::scan_events(start, best, &config.moonbeam_client, &config.proof_contract)
+					.await
+					.expect("Event parse error");
 
 			if res.is_some() {
 				// send result to channel
 				// unwrap MUST succeed
-				let output = res.unwrap().into_bytes().expect("proofs encode into bytes error in task moonbeam scan");
+				let output = res
+					.unwrap()
+					.into_bytes()
+					.expect("proofs encode into bytes error in task moonbeam scan");
 
 				let status = event_sender.send(output).await;
 				if let Err(_) = status {
@@ -240,7 +245,10 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> std::resul
 
 			if !verify_res.is_empty() {
 				let message_to_send = serde_json::to_vec(&verify_res);
-				submit_sender.send(message_to_send.unwrap()).await.expect("[Task attestation] Fail to send msg to next task.");
+				submit_sender
+					.send(message_to_send.unwrap())
+					.await
+					.expect("[Task attestation] Fail to send msg to next task.");
 
 				r.commit().expect("msg not commit in task attestation");
 			}
@@ -259,7 +267,8 @@ pub async fn run(start: U64, configs: Arc<RwLock<ConfigInstance>>) -> std::resul
 			};
 			log::info!("recv msg in task4");
 
-			let inputs = serde_json::from_slice(&*r).expect("message decode error in task moonbeam submission");
+			let inputs = serde_json::from_slice(&*r)
+				.expect("message decode error in task moonbeam submission");
 
 			let res =
 				moonbeam::submit_txs(&config.aggregator_contract, config.private_key, inputs).await;

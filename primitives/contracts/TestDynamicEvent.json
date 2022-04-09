@@ -1,0 +1,34 @@
+[
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "who",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint128[]",
+        "name": "outputs",
+        "type": "uint128[]"
+      }
+    ],
+    "name": "Dynamic",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint128[]",
+        "name": "_inputs",
+        "type": "uint128[]"
+      }
+    ],
+    "name": "testDynamicEvent",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

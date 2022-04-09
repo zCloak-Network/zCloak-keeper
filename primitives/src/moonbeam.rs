@@ -1,4 +1,3 @@
-pub use super::*;
 use web3::{
 	self as web3,
 	api::Eth,
@@ -11,13 +10,14 @@ use web3::{
 	Transport,
 };
 
+pub use super::*;
+
 pub const MOONBEAM_SCAN_SPAN: usize = 10;
 // TODO: move it to config file
 pub const MOONBEAM_LISTENED_EVENT: &'static str = "AddProof";
 pub const MOONBEAM_BLOCK_DURATION: u64 = 12;
 pub const MOONBEAM_TRANSACTION_CONFIRMATIONS: usize = 2;
 pub const MOONBEAM_LOG_TARGET: &str = "Moonbeam";
-
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub struct MoonbeamConfig {
@@ -73,10 +73,22 @@ impl MoonbeamClient {
 		)?;
 		Ok(contract)
 	}
+
+	#[cfg(test)]
+	pub fn events_contract(&self, contract_addr: &str) -> Result<Contract<Http>> {
+		let address = utils::trim_address_str(contract_addr)?;
+		let contract = Contract::from_json(
+			self.inner.eth(),
+			address,
+			include_bytes!("../contracts/TestDynamicEvent.json"),
+		)?;
+		Ok(contract)
+	}
 }
 
 pub mod utils {
 	use super::*;
+
 	// todo: test if if can filter event due to contract address
 	pub async fn events<T: Transport, R: Detokenize>(
 		web3: Eth<T>,
@@ -169,14 +181,41 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use crate::{MoonbeamClient, U64};
+	use std::str::FromStr;
 	use web3::transports::Http;
+
+	use crate::{MoonbeamClient, Address, U64};
+
+	use super::*;
 
 	#[test]
 	fn test_cargo_env_variables() {
 		let contract_name = "KiltProofs";
 		let bytes = include_bytes!("../contracts/ProofStorage.json");
 		assert!(bytes.len() != 0);
+	}
+
+	#[tokio::test]
+	async fn dynamic_array_in_event_should_parse_right() {
+		let mock_client = MoonbeamClient::new("http://127.0.0.1:7545".to_owned())
+			.expect("moonbeam client url is wrong");
+		let test_contract = mock_client
+			.events_contract("0xb364A9B9bE6E1d66A41b8a4AA15F5311968EB44C")
+			.expect("contract should be deployed");
+		type EventEnum = (Address, Vec<u128>);
+		let res = utils::events::<_, EventEnum>(
+			mock_client.eth(),
+			&test_contract,
+			"Dynamic",
+			Some(204.into()),
+			Some(204.into()),
+		)
+		.await
+		.expect("Wrong log");
+
+		for (event, log) in res {
+			assert_eq!(event.0, Address::from_str("69d09ef8b6B1a2fECD70F147bA302B8278cafF39").expect("wrong address format"));
+			assert_eq!(event.1, vec![1,2,3,4]);
+		}
 	}
 }

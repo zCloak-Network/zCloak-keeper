@@ -23,28 +23,29 @@ pub async fn query_and_verify(
 				cid_context.len()
 			);
 			// if verify meet error, do not throw it.
-			let result = match verify(&proof, &cid_context) {
-				Ok(r) => {
-					if !r {
-						// TODO set to database in future
-						log::info!(
+			let result =
+				match verify(&proof, &cid_context) {
+					Ok(r) => {
+						if !r {
+							// TODO set to database in future
+							log::info!(
                             target: VERIFY_LOG_TARGET,
                             "verify zkStark from cid context failed|event_blocknumber:{:}|cid:{:}",
                             number, proof.proof_cid());
-					}
-					r
-				},
-				Err(e) => {
-					log::error!(
-						target: VERIFY_LOG_TARGET,
-						"verify zkStark inner error|e:{:?}|event_blocknumber:{:}|cid:{:}",
-						e,
-						number,
-						proof.proof_cid(),
-					);
-					false
-				},
-			};
+						}
+						r
+					},
+					Err(e) => {
+						log::error!(
+							target: VERIFY_LOG_TARGET,
+							"verify zkStark inner error|e:{:?}|event_blocknumber:{:}|cid:{:}",
+							e,
+							number,
+							proof.proof_cid(),
+						);
+						false
+					},
+				};
 
 			ret.push(VerifyResult::new_from_proof_event(proof, number, result));
 		}
