@@ -219,8 +219,42 @@
     "inputs": [
       {
         "internalType": "bytes32",
+        "name": "_requestHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "_cType",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "_attester",
+        "type": "bytes32"
+      }
+    ],
+    "name": "checkAttestation",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
         "name": "_rootHash",
         "type": "bytes32"
+      },
+      {
+        "internalType": "uint128[]",
+        "name": "_calcOutput",
+        "type": "uint128[]"
       },
       {
         "internalType": "bool",
@@ -249,6 +283,11 @@
       {
         "internalType": "address",
         "name": "_keeper",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_cOwner",
         "type": "address"
       },
       {
@@ -282,59 +321,6 @@
       }
     ],
     "name": "isFinished",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "_who",
-        "type": "address"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "_requestHash",
-        "type": "bytes32"
-      }
-    ],
-    "name": "isValid",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "_requestHash",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "_cType",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "_attester",
-        "type": "bytes32"
-      }
-    ],
-    "name": "judgeAttester",
     "outputs": [
       {
         "internalType": "bool",
@@ -428,11 +414,45 @@
         "internalType": "bytes32",
         "name": "_attester",
         "type": "bytes32"
+      },
+      {
+        "internalType": "uint128[]",
+        "name": "_calcOutput",
+        "type": "uint128[]"
       }
     ],
     "name": "submit",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_who",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "_requestHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "zkID",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint128[]",
+        "name": "",
+        "type": "uint128[]"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   }
 ]

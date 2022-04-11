@@ -184,7 +184,7 @@ mod tests {
 	use std::str::FromStr;
 	use web3::transports::Http;
 
-	use crate::{MoonbeamClient, Address, U64};
+	use crate::{Address, MoonbeamClient, U64};
 
 	use super::*;
 
@@ -214,8 +214,12 @@ mod tests {
 		.expect("Wrong log");
 
 		for (event, log) in res {
-			assert_eq!(event.0, Address::from_str("69d09ef8b6B1a2fECD70F147bA302B8278cafF39").expect("wrong address format"));
-			assert_eq!(event.1, vec![1,2,3,4]);
+			assert_eq!(
+				event.0,
+				Address::from_str("69d09ef8b6B1a2fECD70F147bA302B8278cafF39")
+					.expect("wrong address format")
+			);
+			assert_eq!(event.1, vec![1, 2, 3, 4]);
 		}
 	}
 }

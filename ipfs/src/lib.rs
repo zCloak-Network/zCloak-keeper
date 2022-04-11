@@ -57,7 +57,7 @@ pub(crate) fn verify(p: &ProofEvent, context: &[u8]) -> Result<bool> {
 	let inputs = p.public_inputs();
 	let outputs = p.outputs();
 	let program_hash = p.program_hash();
-	let r = verify_proof(&program_hash, context, inputs.as_slice(), outputs.as_slice())?;
+	let r = verify_proof(&program_hash, context, inputs.as_slice(), &outputs)?;
 	log::info!(
 		target: VERIFY_LOG_TARGET,
 		"[STARKVM] the proof {:?} is verified as {}",

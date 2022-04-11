@@ -111,7 +111,7 @@ pub async fn submit_txs(
 		let has_submitted: bool = contract
 			.query(
 				"hasSubmitted",
-				(worker_address, v.request_hash),
+				(worker_address, v.data_owner, v.request_hash),
 				None,
 				Web3Options::default(),
 				None,
@@ -134,7 +134,15 @@ pub async fn submit_txs(
 			let r = contract
 				.signed_call_with_confirmations(
 					"submit",
-					(v.data_owner, v.request_hash, v.c_type, v.root_hash, v.is_passed, v.attester),
+					(
+						v.data_owner,
+						v.request_hash,
+						v.c_type,
+						v.root_hash,
+						v.is_passed,
+						v.attester,
+						v.calc_output,
+					),
 					{
 						let mut options = Web3Options::default();
 						options.gas = Some(1000000.into());

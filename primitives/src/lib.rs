@@ -1,11 +1,10 @@
-use std::collections::BTreeMap;
-
 pub use codec::{Decode, Encode};
 pub use serde::{Deserialize, Serialize};
 pub use sp_core::{
 	storage::{StorageData, StorageKey},
 	Bytes, H256 as Hash,
 };
+use std::{collections::BTreeMap, default::Default};
 use web3::{
 	contract::{tokens::Detokenize, Error as ContractError},
 	ethabi::Token,
@@ -41,7 +40,6 @@ pub type Result<T> = std::result::Result<T, (U64, error::Error)>;
 #[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
 pub struct ProofEvent {
 	pub(crate) data_owner: Address,
-	pub(crate) kilt_address: Bytes32,
 	pub(crate) attester: Bytes32,
 	pub(crate) c_type: Bytes32,
 	pub(crate) program_hash: Bytes32,
@@ -49,14 +47,14 @@ pub struct ProofEvent {
 	pub(crate) proof_cid: String,
 	pub(crate) request_hash: Bytes32,
 	pub(crate) root_hash: Bytes32,
-	pub(crate) expect_result: bool,
+	pub(crate) expect_result: Vec<u128>,
 }
 
 // # of elements in AddProof event
-const EVENT_LEN: usize = 10;
+const EVENT_LEN: usize = 9;
 // TODO: make it config
 pub type ProofEventEnum =
-	(Address, Bytes32, Bytes32, Bytes32, Bytes32, String, String, Bytes32, Bytes32, bool);
+	(Address, Bytes32, Bytes32, Bytes32, String, String, Bytes32, Bytes32, Vec<u128>);
 
 impl Detokenize for ProofEvent {
 	fn from_tokens(tokens: Vec<Token>) -> std::result::Result<Self, web3::contract::Error> {
@@ -72,15 +70,14 @@ impl Detokenize for ProofEvent {
 		let proof_event_enum = ProofEventEnum::from_tokens(tokens)?;
 		Ok(ProofEvent {
 			data_owner: proof_event_enum.0,
-			kilt_address: proof_event_enum.1,
-			attester: proof_event_enum.2,
-			c_type: proof_event_enum.3,
-			program_hash: proof_event_enum.4,
-			field_name: proof_event_enum.5,
-			proof_cid: proof_event_enum.6,
-			request_hash: proof_event_enum.7,
-			root_hash: proof_event_enum.8,
-			expect_result: proof_event_enum.9,
+			attester: proof_event_enum.1,
+			c_type: proof_event_enum.2,
+			program_hash: proof_event_enum.3,
+			field_name: proof_event_enum.4,
+			proof_cid: proof_event_enum.5,
+			request_hash: proof_event_enum.6,
+			root_hash: proof_event_enum.7,
+			expect_result: proof_event_enum.8,
 		})
 	}
 }
@@ -90,6 +87,9 @@ impl ProofEvent {
 		self.request_hash
 	}
 
+	// todo error handle?
+	// calc the output from `ProofEvent`,
+	// [exp_result_0, exp_result_1] -> [u8; 32]
 	pub fn root_hash(&self) -> Bytes32 {
 		self.root_hash
 	}
@@ -115,11 +115,7 @@ impl ProofEvent {
 		outputs.push(u128::from_be_bytes(mid));
 		mid.copy_from_slice(&self.root_hash[16..]);
 		outputs.push(u128::from_be_bytes(mid));
-		if self.expect_result {
-			outputs.push(1)
-		} else {
-			outputs.push(0)
-		}
+		outputs.append(&mut self.expect_result.clone());
 
 		outputs
 	}
@@ -151,6 +147,8 @@ pub struct VerifyResult {
 	pub request_hash: Bytes32,
 	pub attester: Bytes32,
 	pub is_passed: bool,
+	// exp_result in ProofEvent
+	pub calc_output: Vec<u128>,
 }
 
 impl VerifyResult {
@@ -164,6 +162,7 @@ impl VerifyResult {
 			request_hash: p.request_hash,
 			attester: p.attester,
 			is_passed: passed,
+			calc_output: p.expect_result,
 		}
 	}
 
@@ -186,18 +185,16 @@ mod tests {
 	use web3::types::Address;
 
 	#[test]
-	fn fake_event_result_parse_should_work() {
-		let json_str = r#"{"0x1":[{"data_owner":"0x0000000000000000000000000000000000000000","kilt_address":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"attester":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"c_type":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"program_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"field_name":"","proof_cid":"","request_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"root_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"expect_result":false}]}"#;
-		let mut test_event = EventResult::new();
-		test_event.entry(1.into()).or_insert(vec![ProofEvent::default()]);
+	fn proof_event_parse_should_work() {
+		let json_str = r#"{"data_owner":"0x127221418abcd357022d29f62449d98d9610dfab", "attester":[76,253,46,114,43,55,11,16,21,52,58,39,201,120,152,21,216,3,253,177,132,10,170,4,6,162,107,229,90,149,255,1],"c_type":[127,46,247,33,178,146,185,183,214,120,233,248,42,176,16,225,57,96,5,88,223,128,91,188,97,160,4,30,96,182,26,24],"program_hash":[138,207,143,54,219,208,64,124,237,34,124,151,249,241,188,249,137,198,175,253,50,35,26,213,106,54,233,223,205,73,38,16],"field_name":"age","proof_cid":"QmUn4UfXdv7uJXerqy1PMfnXxYuM3xfpUC8pFZaVyJoN7H","request_hash":[94,173,49,247,138,238,243,148,66,124,21,189,107,13,78,210,69,212,74,170,249,110,90,37,128,46,16,119,10,76,17,117],"root_hash": [175, 110, 140, 119, 75, 15, 116, 9, 116, 63, 126, 40, 226, 159, 211, 25, 109, 14, 238,	114, 198, 110, 87, 197, 80, 48, 42, 190, 164, 51, 105, 51], "expect_result":[1]}"#;
+		let mut test_event: ProofEvent =
+			serde_json::from_str(json_str).expect("wrong proof event json");
 
-		let event_str = test_event.into_bytes().unwrap();
-		assert_eq!(std::str::from_utf8(&event_str).unwrap(), json_str);
-
-		let event_res = EventResult::try_from_bytes(json_str.as_bytes()).unwrap();
-		let event_res_value = event_res.get_key_value(&1u32.into()).unwrap().1;
-		let test_event_value = event_res.get_key_value(&1u32.into()).unwrap().1;
-		assert_eq!(*event_res_value, *test_event_value);
+		let root_hash = test_event.root_hash();
+		assert_eq!(
+			hex::encode(root_hash),
+			"af6e8c774b0f7409743f7e28e29fd3196d0eee72c66e57c550302abea4336933"
+		);
 	}
 
 	#[test]
@@ -215,17 +212,13 @@ mod tests {
 	}
 
 	#[test]
-	fn true_event_result_parse_should_work() {
-		let json_str = r#"{"0x21":[{"data_owner":"0x127221418abcd357022d29f62449d98d9610dfab","kilt_address":[107,105,108,116,65,99,99,111,117,110,116,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"attester":[76,253,46,114,43,55,11,16,21,52,58,39,201,120,152,21,216,3,253,177,132,10,170,4,6,162,107,229,90,149,255,1],"c_type":[127,46,247,33,178,146,185,183,214,120,233,248,42,176,16,225,57,96,5,88,223,128,91,188,97,160,4,30,96,182,26,24],"program_hash":[138,207,143,54,219,208,64,124,237,34,124,151,249,241,188,249,137,198,175,253,50,35,26,213,106,54,233,223,205,73,38,16],"field_name":"age","proof_cid":"QmUn4UfXdv7uJXerqy1PMfnXxYuM3xfpUC8pFZaVyJoN7H","request_hash":[94,173,49,247,138,238,243,148,66,124,21,189,107,13,78,210,69,212,74,170,249,110,90,37,128,46,16,119,10,76,17,117],"root_hash":[175,110,140,119,75,15,116,9,116,63,126,40,226,159,211,25,109,14,238,114,198,110,87,197,80,48,42,190,164,51,105,51],"expect_result":true}]}"#;
+	fn event_result_parse_should_work() {
+		let json_str = r#"{"0x21":[{"data_owner":"0x127221418abcd357022d29f62449d98d9610dfab","attester":[76,253,46,114,43,55,11,16,21,52,58,39,201,120,152,21,216,3,253,177,132,10,170,4,6,162,107,229,90,149,255,1],"c_type":[127,46,247,33,178,146,185,183,214,120,233,248,42,176,16,225,57,96,5,88,223,128,91,188,97,160,4,30,96,182,26,24],"program_hash":[138,207,143,54,219,208,64,124,237,34,124,151,249,241,188,249,137,198,175,253,50,35,26,213,106,54,233,223,205,73,38,16],"field_name":"age","proof_cid":"QmUn4UfXdv7uJXerqy1PMfnXxYuM3xfpUC8pFZaVyJoN7H","request_hash":[94,173,49,247,138,238,243,148,66,124,21,189,107,13,78,210,69,212,74,170,249,110,90,37,128,46,16,119,10,76,17,117],"root_hash":[175,110,140,119,75,15,116,9,116,63,126,40,226,159,211,25,109,14,238,114,198,110,87,197,80,48,42,190,164,51,105,51],"expect_result":[1]}]}"#;
 		let mut test_event = EventResult::new();
 
 		test_event.entry(33.into()).or_insert(vec![]).push(ProofEvent {
 			data_owner: Address::from_str("0x127221418abcd357022d29f62449d98d9610dfab")
 				.expect("wrong address"),
-			kilt_address: [
-				107, 105, 108, 116, 65, 99, 99, 111, 117, 110, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			],
 			attester: [
 				76, 253, 46, 114, 43, 55, 11, 16, 21, 52, 58, 39, 201, 120, 152, 21, 216, 3, 253,
 				177, 132, 10, 170, 4, 6, 162, 107, 229, 90, 149, 255, 1,
@@ -248,7 +241,7 @@ mod tests {
 				175, 110, 140, 119, 75, 15, 116, 9, 116, 63, 126, 40, 226, 159, 211, 25, 109, 14,
 				238, 114, 198, 110, 87, 197, 80, 48, 42, 190, 164, 51, 105, 51,
 			],
-			expect_result: true,
+			expect_result: vec![1],
 		});
 
 		let event_str = test_event.into_bytes().unwrap();
