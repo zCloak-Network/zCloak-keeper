@@ -2,6 +2,7 @@ use structopt::StructOpt;
 
 mod command;
 mod entry;
+mod tasks;
 
 use command::Opt;
 use keeper_primitives::Error;

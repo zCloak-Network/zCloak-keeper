@@ -1,6 +1,20 @@
 use super::{Deserialize, IpfsConfig, KiltConfig, MoonbeamConfig, Serialize};
 use std::{fs::File, path::PathBuf};
 
+use super::{MoonbeamClient, IpfsClient, KiltClient, Contract, Http};
+use secp256k1::SecretKey;
+
+#[derive(Clone, Debug)]
+pub struct ConfigInstance {
+	pub moonbeam_client: MoonbeamClient,
+	pub ipfs_client: IpfsClient,
+	pub kilt_client: KiltClient,
+	pub proof_contract: Contract<Http>,
+	pub aggregator_contract: Contract<Http>,
+	pub private_key: SecretKey,
+}
+
+
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub struct Config {
 	pub moonbeam: MoonbeamConfig,
