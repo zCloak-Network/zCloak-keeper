@@ -9,7 +9,7 @@ use keeper_primitives::{
 		self, ProofEvent, MOONBEAM_LISTENED_EVENT, MOONBEAM_LOG_TARGET, MOONBEAM_SCAN_SPAN,
 		MOONBEAM_TRANSACTION_CONFIRMATIONS,
 	},
-	Contract, Http, MoonbeamClient, Result as KeeperResult, VerifyResult, Web3Options, U64,
+	Contract, Address, Http, MoonbeamClient, Result as KeeperResult, VerifyResult, Web3Options, U64,
 };
 
 pub use task::{task_scan, task_submit};
@@ -104,17 +104,16 @@ pub async fn scan_events(
 
 pub async fn submit_txs(
 	contract: &Contract<Http>,
-	worker: SecretKey,
+	keeper_pri: SecretKey,
+	keeper_address: Address,
 	res: Vec<VerifyResult>,
 ) -> std::result::Result<(), keeper_primitives::moonbeam::Error> {
-	let key_ref = SecretKeyRef::new(&worker);
-	let worker_address = key_ref.address();
 	for v in res {
 		// TODO: read multiple times?
 		let has_submitted: bool = contract
 			.query(
 				"hasSubmitted",
-				(worker_address, v.data_owner, v.request_hash),
+				(keeper_address, v.data_owner, v.request_hash),
 				None,
 				Web3Options::default(),
 				None,
@@ -152,7 +151,7 @@ pub async fn submit_txs(
 						options
 					},
 					MOONBEAM_TRANSACTION_CONFIRMATIONS,
-					&worker,
+					&keeper_pri,
 				)
 				.await;
 

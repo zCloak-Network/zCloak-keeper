@@ -1,16 +1,19 @@
 use std::{str::FromStr, sync::Arc, time::Duration};
+
 use log::log;
 use secp256k1::SecretKey;
 use tokio::{io, sync::RwLock};
 use yaque::{channel, recovery};
-
+use keeper_primitives::{
+	Config,
+	config::Error as ConfigError, ConfigInstance, Contract, Error, EventResult, Http,
+	IpfsClient, JsonParse, KiltClient, MoonbeamClient, Result, Key, SecretKeyRef, U64, VerifyResult,
+};
+use keeper_primitives::kilt::KILT_LOG_TARGET;
 // #[cfg(feature = "monitor")]
 use keeper_primitives::monitor;
-
-use keeper_primitives::{
-	config::Error as ConfigError, Config, ConfigInstance, Contract, Error, EventResult,
-	Http, IpfsClient, JsonParse, KiltClient, MoonbeamClient, Result, VerifyResult, U64,
-};
+use keeper_primitives::monitor::MonitorMetrics;
+use keeper_primitives::moonbeam::MOONBEAM_LOG_TARGET;
 
 use crate::command::StartOptions;
 
@@ -35,6 +38,8 @@ pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error
 		moonbeam_client.aggregator_contract(&config.moonbeam.write_contract)?;
 
 	let moonbeam_worker_pri = secp256k1::SecretKey::from_str(&config.moonbeam.private_key)?;
+	let key_ref = SecretKeyRef::new(&moonbeam_worker_pri);
+	let keeper_address = key_ref.address();
 
 	let config_instance = ConfigInstance {
 		channel_files,
@@ -44,7 +49,10 @@ pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error
 		proof_contract,
 		aggregator_contract,
 		private_key: moonbeam_worker_pri,
+		keeper_address,
 	};
+
+	log::info!("ConfigInstance intialized");
 
 	// run a keeper
 	run(start, Arc::new(RwLock::new(config_instance))).await?;
@@ -91,39 +99,88 @@ pub async fn run(
 	let monitor_sender3 = monitor_sender.clone();
 	let monitor_sender4 = monitor_sender.clone();
 
-
 	// 1. scan moonbeam proof event, and push them to event channel
 	let task_scan = tokio::spawn(async move {
 		let config = config1.read().await;
-		moonbeam::task_scan(&config, &mut event_sender, start, monitor_sender1).await;
+		let res = moonbeam::task_scan(&config, &mut event_sender, start, monitor_sender1.clone()).await;
+		if let Err(e) = res {
+			if cfg!(feature = "monitor") {
+				let monitor_metrics = MonitorMetrics::new(
+					MOONBEAM_LOG_TARGET.to_string(),
+					Some(e.0), e.1.into(),
+					config.keeper_address);
+				monitor_sender1.send(monitor_metrics).await;
+			}
+		}
 	});
 
 	// 2. query ipfs and verify cid proof
 	// TODO: separate ipfs query end starksvm verify
 	let task_ipfs_verify = tokio::spawn(async move {
 		let config = config2.read().await;
-		ipfs::task_verify(&config, (&mut attest_sender, &mut event_receiver), monitor_sender2).await;
+		let res = ipfs::task_verify(&config, (&mut attest_sender, &mut event_receiver)).await;
+
+		if let Err(e) = res {
+			log::error!(
+				target: "IPFS_AND_VERIFY",
+				"encounter error: {:?}",
+				e
+			);
+			if cfg!(feature = "monitor") {
+				let monitor_metrics = MonitorMetrics::new(
+					MOONBEAM_LOG_TARGET.to_string(),
+					e.0, e.1.into(),
+					config.keeper_address);
+				monitor_sender2.send(monitor_metrics).await;
+			}
+		}
 	});
 
 	//
 	// 3. query kilt
 	let task_kilt_attest = tokio::spawn(async move {
 		let config = config3.read().await;
-		kilt::task_attestation(&config, (&mut submit_sender, &mut attest_receiver), monitor_sender3).await;
+		let res = kilt::task_attestation(&config, (&mut submit_sender, &mut attest_receiver)).await;
 
+		if let Err(e) = res {
+			log::error!(
+				target: KILT_LOG_TARGET,
+				"encounter error: {:?}",
+				e
+			);
+
+			if cfg!(feature = "monitor") {
+				let monitor_metrics = MonitorMetrics::new(
+					MOONBEAM_LOG_TARGET.to_string(),
+					e.0, e.1.into(),
+					config.keeper_address);
+				monitor_sender3.send(monitor_metrics).await;
+			}
+		}
 	});
 
 	// 4. submit tx
 	let task_submit_tx = tokio::spawn(async move {
 		let config = config4.read().await;
-		moonbeam::task_submit(&config, &mut submit_receiver, monitor_sender4).await;
+		let res = moonbeam::task_submit(&config, &mut submit_receiver, monitor_sender4.clone()).await;
+		if cfg!(feature = "monitor") {
+			if let Err(e) = res {
+				let monitor_metrics = MonitorMetrics::new(
+					MOONBEAM_LOG_TARGET.to_string(),
+					e.0, e.1,
+					config.keeper_address);
+				monitor_sender4.send(monitor_metrics).await;
+			}
+		}
 	});
 
 	// monitor
 	let task_monitor_handle = tokio::spawn(async move {
 		while let Some(msg) = monitor_receiver.recv().await {
 			if cfg!(feature = "monitor") {
-				//todo:  send msg to robot
+				// todo: make it to config json
+				let bot_url = include_str!("../../primitives/res/bot-url");
+				monitor::alert(bot_url, msg.message().expect("monitor message parse wrong")).await;
 			}
 		}
 	});

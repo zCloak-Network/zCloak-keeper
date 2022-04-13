@@ -2,7 +2,10 @@
 pub enum Error {
 	#[error("Config load Error, err: {0}")]
 	ConfigLoadError(#[from] crate::config::Error),
-	//
+
+	#[error("msg queue file I/O error,  err: {0}")]
+	IoError(#[from] std::io::Error),
+
 	#[error("Event Parse Error, err: {0}")]
 	EventParseError(#[from] serde_json::Error),
 

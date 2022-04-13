@@ -18,7 +18,7 @@ const TIME_OUT: Duration = Duration::from_secs(5);
 pub struct MonitorMetrics {
 	// align with log target
 	target: String,
-	block_number: U64,
+	block_number: Option<U64>,
 	// todo: structure this
 	error: super::Error,
 	keeper_address: Address,
@@ -30,19 +30,32 @@ pub type MonitorReceiver = Receiver<MonitorMetrics>;
 pub type KeywordReplace = HashMap<String, String>;
 
 impl MonitorMetrics {
-	// todo: do not name it send, or maybe move it out of impl block
-	pub async fn send(self, sender: MonitorSender) -> std::result::Result<(), SendError<Self>>{
-		sender.send(self).await
+	pub fn new(target: String, block_number: Option<U64>, error: super::Error,  keeper_address: Address, ) -> Self {
+
+		Self {
+			target,
+			block_number,
+			error,
+			keeper_address
+		}
 	}
+
 
 	pub fn monitor_keywords(&self) -> KeywordReplace {
 		let mut map = HashMap::new();
 		// todo: config key
 		map.insert("level".to_owned(), self.target.clone());
-		map.insert("BlockNumber".to_owned(), self.block_number.as_u64().to_string());
+		map.insert("BlockNumber".to_owned(), self.get_block());
 		map.insert("error".to_owned(), format!("{}", self.error).to_string());
 		map.insert("KeeperAddress".to_owned(), self.keeper_address.to_string());
 		map
+	}
+
+	pub fn get_block(&self) -> String {
+		match self.block_number {
+			Some(n) => n.as_u64().to_string(),
+			None => "None".to_owned()
+		}
 	}
 
 	pub fn message(&self) -> Result<String> {
@@ -110,7 +123,7 @@ mod tests {
 		let bot_url = include_str!("../res/bot-url");
 		println!("the bot url is {}", bot_url);
 		let msg = new_monitor_metrics().message().expect("monitor template format error");
-		println!("the messge is {:#?}", &msg);
+		println!("the messge is \n {:}", &msg);
 		let res = alert(bot_url, msg).await;
 		assert!(res.is_ok());
 	}

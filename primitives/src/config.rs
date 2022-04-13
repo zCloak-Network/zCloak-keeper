@@ -1,7 +1,7 @@
 use super::{Deserialize, IpfsConfig, KiltConfig, MoonbeamConfig, Serialize};
 use std::{fs::File, path::PathBuf};
 
-use super::{MoonbeamClient, IpfsClient, KiltClient, Contract, Http};
+use super::{MoonbeamClient, IpfsClient, KiltClient, Contract, Http, Address};
 use secp256k1::SecretKey;
 
 // todo: move
@@ -21,6 +21,7 @@ pub struct ConfigInstance {
 	pub proof_contract: Contract<Http>,
 	pub aggregator_contract: Contract<Http>,
 	pub private_key: SecretKey,
+	pub keeper_address: Address,
 }
 
 

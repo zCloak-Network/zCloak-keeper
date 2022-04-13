@@ -14,6 +14,7 @@ use web3::{
 pub use web3::{
 	contract::{Contract, Options as Web3Options},
 	transports::Http,
+	signing::{Key, SecretKeyRef},
 	types::{Address, BlockNumber, FilterBuilder, Log, U64},
 };
 pub use futures_timer::Delay;

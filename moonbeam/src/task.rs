@@ -1,20 +1,18 @@
 use std::time::Duration;
-use keeper_primitives::{
-    Delay,
-    CHANNEL_LOG_TARGET,
-    ConfigInstance, MqSender, MqReceiver,
-    moonbeam::MOONBEAM_LOG_TARGET,
-    monitor::MonitorSender, JsonParse};
+
+use keeper_primitives::{CHANNEL_LOG_TARGET, ConfigInstance, Delay, Error, JsonParse, monitor::MonitorSender, moonbeam::MOONBEAM_LOG_TARGET, MqReceiver, MqSender};
+use keeper_primitives::monitor::MonitorMetrics;
+
 use crate::U64;
 
+use super::KeeperResult;
 
 pub async fn task_scan(
     config: &ConfigInstance,
     msg_sender: &mut MqSender,
     mut start: U64,
-    monitor_sender: MonitorSender
-) {
-
+    monitor_sender: MonitorSender,
+) -> KeeperResult<()> {
     let mut tmp_start_cache = 0.into();
 
     loop {
@@ -28,6 +26,13 @@ pub async fn task_scan(
 						start,
 						 e
 					);
+
+                let monitor_metrics = MonitorMetrics::new(
+                    MOONBEAM_LOG_TARGET.to_string(),
+                    None, e.into(),
+                    config.keeper_address);
+                monitor_sender.send(monitor_metrics).await;
+
                 continue
             },
         };
@@ -43,8 +48,7 @@ pub async fn task_scan(
         // todo: could return and throw error instead of expect
         let (res, end) =
             super::scan_events(start, best, &config.moonbeam_client, &config.proof_contract)
-                .await
-                .expect("Event parse error");
+                .await?;
 
         if res.is_some() {
             // send result to channel
@@ -52,17 +56,16 @@ pub async fn task_scan(
             let output = res
                 .unwrap()
                 .into_bytes()
-                .expect("proofs encode into bytes error in tasks moonbeam scan");
+                .map_err(|e| (start, e.into()))?;
 
             let status = msg_sender.send(output).await;
-            if let Err(_) = status {
+            if let Err(e) = status {
                 log::error!(
 						target: CHANNEL_LOG_TARGET,
 						"Fail to write data in block from: #{:?} into event channel file",
 						start,
 					);
-                // repeat scanning from the start again
-                continue
+                return Err((start, e.into()));
             }
             // After the proofevent list successfully sent to task2
             // reset the tmp_start_cache
@@ -78,7 +81,6 @@ pub async fn task_scan(
                 ))
                     .await;
             }
-            // continue;
         }
 
         // reset scan start point
@@ -90,8 +92,8 @@ pub async fn task_scan(
 pub async fn task_submit(
     config: &ConfigInstance,
     msg_receiver: &mut MqReceiver,
-    monitor_sender: MonitorSender
-) {
+    monitor_sender: MonitorSender,
+) -> std::result::Result<(), (Option<U64>, Error)> {
     while let Ok(r) = msg_receiver.recv_timeout(Delay::new(Duration::from_secs(1))).await {
         // while let Ok(events) = event_receiver.recv().await {
         let r = match r {
@@ -100,22 +102,31 @@ pub async fn task_submit(
         };
         log::info!("recv msg in task4");
 
-        let inputs = serde_json::from_slice(&*r)
-            .expect("message decode error in tasks moonbeam submission");
+        let inputs = serde_json::from_slice(&*r).map_err(|e| (None, e.into()))?;
 
         let res =
-            super::submit_txs(&config.aggregator_contract, config.private_key, inputs).await;
+            super::submit_txs(&config.aggregator_contract, config.private_key, config.keeper_address, inputs).await;
         match res {
             Ok(_) => {
-                r.commit().expect("fail to commit in tasks moonbeam submission");
+                r.commit().map_err(|e| (None, e.into()))?;
             },
             Err(e) => {
                 log::error!(
-						target: MOONBEAM_LOG_TARGET,
-						"Fail to submit moonbeam tx, err: {:?}",
-						e
-					);
+                    target: MOONBEAM_LOG_TARGET,
+                    "Fail to submit moonbeam tx, err: {:?}",
+                    e
+                );
+
+                if cfg!(feature = "monitor") {
+                    let monitor_metrics = MonitorMetrics::new(
+                        MOONBEAM_LOG_TARGET.to_string(),
+                        None, e.into(),
+                        config.keeper_address);
+                    monitor_sender.send(monitor_metrics).await;
+                }
             },
         };
     }
+
+    Ok(())
 }

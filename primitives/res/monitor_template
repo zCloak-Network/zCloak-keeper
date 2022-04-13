@@ -15,11 +15,7 @@
         "elements": [{{
             "tag": "div",
             "text": {{
-                "content": "
-                    **target**: {level} \n
-                    **BlockNumber**: {BlockNumber} \n
-                    **Keeper**: {KeeperAddress} \n
-                    **More**: {error}",
+                "content": "**target**: {level} \n **BlockNumber**: {BlockNumber} \n **Keeper**: {KeeperAddress} \n **More**: {error}",
                 "tag": "lark_md"
             }}
         }}]

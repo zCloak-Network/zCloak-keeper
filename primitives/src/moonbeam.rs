@@ -195,31 +195,31 @@ mod tests {
 		assert!(bytes.len() != 0);
 	}
 
-	#[tokio::test]
-	async fn dynamic_array_in_event_should_parse_right() {
-		let mock_client = MoonbeamClient::new("http://127.0.0.1:7545".to_owned())
-			.expect("moonbeam client url is wrong");
-		let test_contract = mock_client
-			.events_contract("0xb364A9B9bE6E1d66A41b8a4AA15F5311968EB44C")
-			.expect("contract should be deployed");
-		type EventEnum = (Address, Vec<u128>);
-		let res = utils::events::<_, EventEnum>(
-			mock_client.eth(),
-			&test_contract,
-			"Dynamic",
-			Some(204.into()),
-			Some(204.into()),
-		)
-		.await
-		.expect("Wrong log");
-
-		for (event, log) in res {
-			assert_eq!(
-				event.0,
-				Address::from_str("69d09ef8b6B1a2fECD70F147bA302B8278cafF39")
-					.expect("wrong address format")
-			);
-			assert_eq!(event.1, vec![1, 2, 3, 4]);
-		}
-	}
+	// #[tokio::test]
+	// async fn dynamic_array_in_event_should_parse_right() {
+	// 	let mock_client = MoonbeamClient::new("http://127.0.0.1:7545".to_owned())
+	// 		.expect("moonbeam client url is wrong");
+	// 	let test_contract = mock_client
+	// 		.events_contract("0xb364A9B9bE6E1d66A41b8a4AA15F5311968EB44C")
+	// 		.expect("contract should be deployed");
+	// 	type EventEnum = (Address, Vec<u128>);
+	// 	let res = utils::events::<_, EventEnum>(
+	// 		mock_client.eth(),
+	// 		&test_contract,
+	// 		"Dynamic",
+	// 		Some(204.into()),
+	// 		Some(204.into()),
+	// 	)
+	// 	.await
+	// 	.expect("Wrong log");
+	//
+	// 	for (event, log) in res {
+	// 		assert_eq!(
+	// 			event.0,
+	// 			Address::from_str("69d09ef8b6B1a2fECD70F147bA302B8278cafF39")
+	// 				.expect("wrong address format")
+	// 		);
+	// 		assert_eq!(event.1, vec![1, 2, 3, 4]);
+	// 	}
+	// }
 }
