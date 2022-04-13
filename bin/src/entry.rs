@@ -78,7 +78,7 @@ pub async fn run(
 	let (mut submit_sender, mut submit_receiver) = channel(&config_channels.attest_to_submit).unwrap();
 
 	// alert message sending
-	let (monitor_sender, mut monitor_receiver) = tokio::sync::mpsc::channel::<monitor::MonitorMessage>(100);
+	let (monitor_sender, mut monitor_receiver) = tokio::sync::mpsc::channel::<monitor::MonitorMetrics>(100);
 
 	// spread configs
 	let config1 = configs.clone();

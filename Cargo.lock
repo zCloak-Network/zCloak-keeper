@@ -1584,10 +1584,12 @@ dependencies = [
  "reqwest",
  "secp256k1",
  "serde 1.0.136",
+ "serde-error",
  "serde_json",
  "sp-core 4.0.0",
  "sp-runtime",
  "starksVM",
+ "strfmt",
  "thiserror",
  "tokio",
  "url",
@@ -2878,6 +2880,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-error"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e988182713aeed6a619a88bca186f6d6407483485ffe44c869ee264f8eabd13f"
+dependencies = [
+ "serde 1.0.136",
+]
+
+[[package]]
 name = "serde-hjson"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3694,6 +3705,12 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "strfmt"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b278b244ef7aa5852b277f52dd0c6cac3a109919e1f6d699adde63251227a30f"
 
 [[package]]
 name = "strsim"

@@ -1,0 +1,27 @@
+{{
+    "msg_type": "interactive",
+    "card": {{
+        "config": {{
+            "wide_screen_mode": true,
+            "enable_forward": true
+        }},
+        "header": {{
+            "title": {{
+                "content": "Keeper Error",
+                "tag": "plain_text"
+            }},
+            "template": "red"
+        }},
+        "elements": [{{
+            "tag": "div",
+            "text": {{
+                "content": "
+                    **target**: {level} \n
+                    **BlockNumber**: {BlockNumber} \n
+                    **Keeper**: {KeeperAddress} \n
+                    **More**: {error}",
+                "tag": "lark_md"
+            }}
+        }}]
+    }}
+}}

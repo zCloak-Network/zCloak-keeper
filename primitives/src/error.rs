@@ -19,7 +19,7 @@ pub enum Error {
 	KiltError(#[from] crate::kilt::Error),
 
 	#[error("Unexpect Error, err: {0}")]
-	OtherError(#[from] anyhow::Error),
+	OtherError(String),
 
 	#[error("Parse private Error, err: {0}")]
 	PrivateKeyError(#[from] secp256k1::Error),

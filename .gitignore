@@ -3,4 +3,5 @@
 .vscode
 .idea
 **/config.json
+**/bot-url
 data*
