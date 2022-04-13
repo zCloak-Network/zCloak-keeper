@@ -14,18 +14,15 @@ use keeper_primitives::{
 
 use crate::command::StartOptions;
 
-const EVENT_TO_IPFS_CHANNEL: &str = "./data/event2ipfs";
-const VERIFY_TO_ATTEST_CHANNEL: &str = "./data/verify2attest";
-const ATTEST_TO_SUBMIT_CHANNEL: &str = "./data/attest2submit";
-
-
 pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error> {
 	// load config
 	let start: U64 = start_options.start_number.unwrap_or_default().into();
+	let channel_files = start_options.channel_files()?;
 	let config_path = start_options.config.ok_or::<Error>(
 		ConfigError::OtherError("Config File need to be specific".to_owned()).into(),
 	)?;
 	let config = Config::load_from_json(&config_path)?;
+
 
 	log::info!("[Config] load successfully!");
 	// init config，
@@ -40,6 +37,7 @@ pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error
 	let moonbeam_worker_pri = secp256k1::SecretKey::from_str(&config.moonbeam.private_key)?;
 
 	let config_instance = ConfigInstance {
+		channel_files,
 		moonbeam_client,
 		ipfs_client,
 		kilt_client,
@@ -62,16 +60,22 @@ pub async fn run(
 	// it record the latest block that contains proofevents
 	// used in ganache
 	let mut start = start;
+
+	// get channel files
+	let config = configs.clone();
+	let config_channels = &config.read().await.channel_files;
+
 	// force recover all channels, which delete all '.lock' files
-	recovery::unlock_queue(EVENT_TO_IPFS_CHANNEL).expect("fail to unlock event2ipfs channel");
-	recovery::unlock_queue(VERIFY_TO_ATTEST_CHANNEL)
+	recovery::unlock_queue(&config_channels.event_to_ipfs).expect("fail to unlock event2ipfs channel");
+	recovery::unlock_queue(&config_channels.verify_to_attest)
 		.expect("fail to unlock verify2attestation channel");
-	recovery::unlock_queue(ATTEST_TO_SUBMIT_CHANNEL)
+	recovery::unlock_queue(&config_channels.attest_to_submit)
 		.expect("fail to unlock attestation2submit channel");
 
-	let (mut event_sender, mut event_receiver) = channel(EVENT_TO_IPFS_CHANNEL).unwrap();
-	let (mut attest_sender, mut attest_receiver) = channel(VERIFY_TO_ATTEST_CHANNEL).unwrap();
-	let (mut submit_sender, mut submit_receiver) = channel(ATTEST_TO_SUBMIT_CHANNEL).unwrap();
+
+	let (mut event_sender, mut event_receiver) = channel(&config_channels.event_to_ipfs).unwrap();
+	let (mut attest_sender, mut attest_receiver) = channel(&config_channels.verify_to_attest).unwrap();
+	let (mut submit_sender, mut submit_receiver) = channel(&config_channels.attest_to_submit).unwrap();
 
 	// alert message sending
 	let (monitor_sender, mut monitor_receiver) = tokio::sync::mpsc::channel::<monitor::MonitorMessage>(100);

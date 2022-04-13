@@ -4,8 +4,17 @@ use std::{fs::File, path::PathBuf};
 use super::{MoonbeamClient, IpfsClient, KiltClient, Contract, Http};
 use secp256k1::SecretKey;
 
+// todo: move
+#[derive(Clone, Debug)]
+pub struct ChannelFiles {
+	pub event_to_ipfs: PathBuf,
+	pub verify_to_attest: PathBuf,
+	pub attest_to_submit: PathBuf
+}
+
 #[derive(Clone, Debug)]
 pub struct ConfigInstance {
+	pub channel_files: ChannelFiles,
 	pub moonbeam_client: MoonbeamClient,
 	pub ipfs_client: IpfsClient,
 	pub kilt_client: KiltClient,

@@ -18,7 +18,7 @@ pub use web3::{
 };
 pub use futures_timer::Delay;
 use crate::kilt::Attestation;
-pub use config::{Config, ConfigInstance};
+pub use config::{Config, ConfigInstance, ChannelFiles};
 pub use error::Error;
 pub use ipfs::{IpfsClient, IpfsConfig};
 pub use kilt::{KiltClient, KiltConfig};
