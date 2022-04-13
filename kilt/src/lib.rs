@@ -1,3 +1,5 @@
+
+
 use jsonrpsee::types::Error as RpcError;
 
 use keeper_primitives::{
@@ -5,8 +7,12 @@ use keeper_primitives::{
 		get_attestation_storage_key, Attestation, Error, KiltClient, KILT_LOG_TARGET,
 		KILT_MAX_RETRY_TIMES,
 	},
+
 	Decode, Hash, Result, VerifyResult,
 };
+
+pub use task::task_attestation;
+mod task;
 
 pub async fn filter(client: &KiltClient, result: Vec<VerifyResult>) -> Result<Vec<VerifyResult>> {
 	let mut v = vec![];
@@ -51,11 +57,11 @@ pub async fn query_attestation(
 	let mut times = 0;
 	let maybe_attestation_details = loop {
 		// connect to kilt and query attestation storage
-		match client.storage(&storage_key, None).await {
+		match client.request_storage(&storage_key, None).await {
 			Ok(details) => break details,
 			Err(e) => {
 				match e {
-					RpcError::RequestTimeout | RpcError::Transport(_) | RpcError::Request(_) =>
+					RpcError::RequestTimeout | RpcError::Transport(_) =>
 						if times < KILT_MAX_RETRY_TIMES {
 							times += 1;
 							log::warn!(

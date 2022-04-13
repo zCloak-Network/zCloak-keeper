@@ -80,7 +80,7 @@ start zCloak Keeper
 
 for instance:
 ```bash
-zcloak-keeper start --config ./config.json --start-number 100
+zcloak-keeper start --config ./config.json --cache-dir ./data --start-number 100
 ```
 
 ```bash
@@ -99,9 +99,12 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-        --config <config>                The zCloak server config or data base path
+OPTIONS:
+        --cache-dir <cache-dir>          The zCloak keeper node msg queue cache directory
+        --config <config>                The zCloak keeper node config file path
     -s, --start-number <start-number>    The starting block number of scanning node events
 ```
 
 - `--config` the path of zCloak keeper's config file
+- `--cache-dir` the directory path which zCloak keeper cache the message queue files
 - `-s` or `--start-number` where to start the moonbeam series networks scan

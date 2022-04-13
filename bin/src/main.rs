@@ -1,10 +1,12 @@
 use structopt::StructOpt;
+use command::Opt;
+use keeper_primitives::Error;
 
 mod command;
 mod entry;
+mod tasks;
 
-use command::Opt;
-use keeper_primitives::Error;
+
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), Error> {

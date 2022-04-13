@@ -59,7 +59,7 @@ impl KiltClient {
 	}
 
 	// fetch storage
-	pub async fn storage(
+	pub async fn request_storage(
 		&self,
 		key: &StorageKey,
 		hash: Option<Hash>,

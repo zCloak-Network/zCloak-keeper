@@ -41,7 +41,7 @@ impl IpfsClient {
 	}
 
 	pub async fn fetch_proof(&self, cid: &str) -> Result<Vec<u8>> {
-		log::info!("[IPFS] start querying ipfs cid : {:?}", cid);
+		log::info!(target: IPFS_LOG_TARGET, "Start querying ipfs cid : {:?}", cid);
 
 		let client = Client::builder().connect_timeout(TIME_OUT).build()?;
 		keep_fetch(&self.cat_url_prefix, cid, client).await

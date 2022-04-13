@@ -1,6 +1,29 @@
 use super::{Deserialize, IpfsConfig, KiltConfig, MoonbeamConfig, Serialize};
 use std::{fs::File, path::PathBuf};
 
+use super::{MoonbeamClient, IpfsClient, KiltClient, Contract, Http};
+use secp256k1::SecretKey;
+
+// todo: move
+#[derive(Clone, Debug)]
+pub struct ChannelFiles {
+	pub event_to_ipfs: PathBuf,
+	pub verify_to_attest: PathBuf,
+	pub attest_to_submit: PathBuf
+}
+
+#[derive(Clone, Debug)]
+pub struct ConfigInstance {
+	pub channel_files: ChannelFiles,
+	pub moonbeam_client: MoonbeamClient,
+	pub ipfs_client: IpfsClient,
+	pub kilt_client: KiltClient,
+	pub proof_contract: Contract<Http>,
+	pub aggregator_contract: Contract<Http>,
+	pub private_key: SecretKey,
+}
+
+
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub struct Config {
 	pub moonbeam: MoonbeamConfig,

@@ -1,3 +1,5 @@
+
+
 use std::collections::BTreeMap;
 
 use keeper_primitives::{
@@ -6,6 +8,10 @@ use keeper_primitives::{
 	verify::{verify_proof, Result, VERIFY_LOG_TARGET},
 	Result as KeeperResult, VerifyResult, U64,
 };
+
+pub use task::task_verify;
+mod task;
+
 
 pub async fn query_and_verify(
 	ipfs: &IpfsClient,

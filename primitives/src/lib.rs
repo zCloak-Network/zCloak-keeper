@@ -16,23 +16,29 @@ pub use web3::{
 	transports::Http,
 	types::{Address, BlockNumber, FilterBuilder, Log, U64},
 };
-
+pub use futures_timer::Delay;
 use crate::kilt::Attestation;
-pub use config::Config;
+pub use config::{Config, ConfigInstance, ChannelFiles};
 pub use error::Error;
 pub use ipfs::{IpfsClient, IpfsConfig};
 pub use kilt::{KiltClient, KiltConfig};
 pub use moonbeam::{MoonbeamClient, MoonbeamConfig};
 pub use traits::JsonParse;
+pub use yaque::{Sender as MqSender, Receiver as MqReceiver};
 
 pub mod config;
 pub mod error;
 pub mod ipfs;
 pub mod kilt;
-// pub mod monitor;
+// #[cfg(feature = "monitor")]
+pub mod monitor;
 pub mod moonbeam;
 mod traits;
 pub mod verify;
+
+// todo: move
+pub const CHANNEL_LOG_TARGET: &str = "Channel";
+pub const MESSAGE_PARSE_LOG_TARGET: &str = "Message Parse";
 
 pub type Bytes32 = [u8; 32];
 pub type Result<T> = std::result::Result<T, (U64, error::Error)>;

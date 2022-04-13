@@ -186,7 +186,6 @@ dependencies = [
  "component-moonbeam",
  "config",
  "env_logger 0.9.0",
- "futures-timer",
  "hex",
  "keeper-primitives",
  "log",
@@ -406,6 +405,7 @@ dependencies = [
  "keeper-primitives",
  "log",
  "serde 1.0.136",
+ "serde_json",
  "tokio",
 ]
 
@@ -1576,6 +1576,7 @@ dependencies = [
  "async-trait",
  "bincode",
  "frame-metadata",
+ "futures-timer",
  "hex",
  "jsonrpsee",
  "log",
@@ -1591,6 +1592,7 @@ dependencies = [
  "tokio",
  "url",
  "web3",
+ "yaque",
 ]
 
 [[package]]
