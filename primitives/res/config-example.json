@@ -10,6 +10,9 @@
   },
   "kilt": {
     "url": "kilt_url"
+  },
+  "monitor": {
+    "bot_url": "bot_url"
   }
 }
 

@@ -1,17 +1,22 @@
-use super::{Deserialize, IpfsConfig, KiltConfig, MoonbeamConfig, Serialize};
 use std::{fs::File, path::PathBuf};
 
-use super::{MoonbeamClient, IpfsClient, KiltClient, Contract, Http, Address};
 use secp256k1::SecretKey;
+
+use crate::monitor::MonitorConfig;
+
+use super::{Deserialize, IpfsConfig, KiltConfig, MoonbeamConfig, Serialize};
+use super::{Address, Contract, Http, IpfsClient, KiltClient, MoonbeamClient};
 
 // todo: move
 #[derive(Clone, Debug)]
 pub struct ChannelFiles {
 	pub event_to_ipfs: PathBuf,
 	pub verify_to_attest: PathBuf,
-	pub attest_to_submit: PathBuf
+	pub attest_to_submit: PathBuf,
 }
 
+
+// todo move
 #[derive(Clone, Debug)]
 pub struct ConfigInstance {
 	pub channel_files: ChannelFiles,
@@ -22,14 +27,17 @@ pub struct ConfigInstance {
 	pub aggregator_contract: Contract<Http>,
 	pub private_key: SecretKey,
 	pub keeper_address: Address,
+	#[cfg(feature = "monitor")]
+	pub bot_url: String,
 }
-
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub struct Config {
 	pub moonbeam: MoonbeamConfig,
 	pub ipfs: IpfsConfig,
 	pub kilt: KiltConfig,
+	#[cfg(feature = "monitor")]
+	pub monitor: MonitorConfig,
 }
 
 impl Config {
@@ -54,12 +62,17 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[cfg(test)]
 mod tests {
-	use crate::{Config, IpfsConfig, KiltConfig, MoonbeamConfig};
 	use std::path::PathBuf;
+
+	use crate::{Config, IpfsConfig, KiltConfig, MoonbeamConfig};
+	use crate::monitor::MonitorConfig;
+
 	#[test]
+	#[cfg(not(feature = "monitor"))]
 	fn config_parse_should_work() {
 		let path = PathBuf::from("./res/config-example.json");
 		let config = Config::load_from_json(&path).unwrap();
+
 		let expect = Config {
 			moonbeam: MoonbeamConfig {
 				url: "http://127.0.0.1:7545".to_string(),
@@ -72,5 +85,14 @@ mod tests {
 		};
 
 		assert_eq!(config, expect);
+	}
+
+
+	#[test]
+	#[cfg(feature = "monitor")]
+	fn config_load_in_feature_monitor_should_work() {
+		let path = PathBuf::from("./res/config-example.json");
+		let config = Config::load_from_json(&path).unwrap();
+		assert_eq!(config.monitor, MonitorConfig { bot_url: "bot_url".to_owned() });
 	}
 }

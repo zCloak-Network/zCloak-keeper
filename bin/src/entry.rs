@@ -41,6 +41,9 @@ pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error
 	let key_ref = SecretKeyRef::new(&moonbeam_worker_pri);
 	let keeper_address = key_ref.address();
 
+	#[cfg(feature = "monitor")]
+	let bot_url = config.monitor.bot_url;
+
 	let config_instance = ConfigInstance {
 		channel_files,
 		moonbeam_client,
@@ -50,6 +53,8 @@ pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error
 		aggregator_contract,
 		private_key: moonbeam_worker_pri,
 		keeper_address,
+		#[cfg(feature = "monitor")]
+		bot_url,
 	};
 
 	log::info!("ConfigInstance intialized");
@@ -93,6 +98,7 @@ pub async fn run(
 	let config2 = configs.clone();
 	let config3 = configs.clone();
 	let config4 = configs.clone();
+	let config5 = configs.clone();
 
 	let monitor_sender1 = monitor_sender.clone();
 	let monitor_sender2 = monitor_sender.clone();
@@ -176,12 +182,14 @@ pub async fn run(
 
 	// monitor
 	let task_monitor_handle = tokio::spawn(async move {
+		let config = config5.read().await;
 		while let Some(msg) = monitor_receiver.recv().await {
-			if cfg!(feature = "monitor") {
-				// todo: make it to config json
-				let bot_url = include_str!("../../primitives/res/bot-url");
-				monitor::alert(bot_url, msg.message().expect("monitor message parse wrong")).await;
+			#[cfg(feature = "monitor")]
+			{
+				let bot_url = &config.bot_url;
+				monitor::alert(&bot_url, msg.message().expect("monitor message parse wrong")).await;
 			}
+			// else do nothing
 		}
 	});
 

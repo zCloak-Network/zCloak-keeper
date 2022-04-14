@@ -12,6 +12,11 @@ use web3::types::Res;
 
 const TIME_OUT: Duration = Duration::from_secs(5);
 
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
+pub struct MonitorConfig {
+	pub bot_url: String
+}
+
 // todo: structure monitor message send
 
 #[derive(Debug)]
@@ -30,7 +35,7 @@ pub type MonitorReceiver = Receiver<MonitorMetrics>;
 pub type KeywordReplace = HashMap<String, String>;
 
 impl MonitorMetrics {
-	pub fn new(target: String, block_number: Option<U64>, error: super::Error,  keeper_address: Address, ) -> Self {
+	pub fn new(target: String, block_number: Option<U64>, error: super::Error,  keeper_address: Address) -> Self {
 
 		Self {
 			target,
@@ -105,7 +110,7 @@ mod tests {
 	fn new_monitor_metrics() -> MonitorMetrics {
 		MonitorMetrics {
 			target: MOONBEAM_LOG_TARGET.to_string(),
-			block_number: 32.into(),
+			block_number: Some(32.into()),
 			error: crate::Error::OtherError("Test Error".to_owned()),
 			keeper_address: Address::from_str("9dD21AdF685CBf76bD3288AEdC5A62b9AddBcd8d").expect("Wrong address format")
 		}
