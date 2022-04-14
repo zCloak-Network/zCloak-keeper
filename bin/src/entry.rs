@@ -57,7 +57,7 @@ pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error
 		bot_url,
 	};
 
-	log::info!("ConfigInstance intialized");
+	log::info!("ConfigInstance initialized");
 
 	// run a keeper
 	run(start, Arc::new(RwLock::new(config_instance))).await?;
@@ -100,6 +100,7 @@ pub async fn run(
 	let config4 = configs.clone();
 	let config5 = configs.clone();
 
+	// spread monitors
 	let monitor_sender1 = monitor_sender.clone();
 	let monitor_sender2 = monitor_sender.clone();
 	let monitor_sender3 = monitor_sender.clone();
@@ -107,6 +108,7 @@ pub async fn run(
 
 	// 1. scan moonbeam proof event, and push them to event channel
 	let task_scan = tokio::spawn(async move {
+		log::info!("Start Task Scan");
 		let config = config1.read().await;
 		let res = moonbeam::task_scan(&config, &mut event_sender, start, monitor_sender1.clone()).await;
 		if let Err(e) = res {
@@ -193,6 +195,7 @@ pub async fn run(
 		}
 	});
 
+	// all tasks will loop so no need to handle Ok condition
 	tokio::try_join!(task_scan, task_ipfs_verify, task_kilt_attest, task_submit_tx, task_monitor_handle)?;
 	Ok(())
 }

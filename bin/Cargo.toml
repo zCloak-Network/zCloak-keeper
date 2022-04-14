@@ -34,4 +34,7 @@ ipfs = { package = "component-ipfs", path = "../ipfs"}
 kilt = { package = "component-kilt", path = "../kilt"}
 
 [features]
-monitor = ["moonbeam/monitor"]
+monitor = [
+    "keeper-primitives/monitor",
+    "moonbeam/monitor"
+]

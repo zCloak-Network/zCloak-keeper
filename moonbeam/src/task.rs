@@ -26,14 +26,8 @@ pub async fn task_scan(
 						start,
 						 e
 					);
-
-                let monitor_metrics = MonitorMetrics::new(
-                    MOONBEAM_LOG_TARGET.to_string(),
-                    None, e.into(),
-                    config.keeper_address);
-                monitor_sender.send(monitor_metrics).await;
-
-                continue
+                // todo: make this more tolerant, e.g. retry N times first before throw and quit
+                return Err((start, e.into()));
             },
         };
 

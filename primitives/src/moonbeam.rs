@@ -49,9 +49,10 @@ impl MoonbeamClient {
 	}
 
 	pub async fn best_number(&self) -> Result<U64> {
-		let maybe_best = self.inner.eth().block_number().await;
+		let maybe_best = self.eth().block_number().await;
 		maybe_best.map_err(|e| e.into())
 	}
+
 	// get proof contract
 	pub fn proof_contract(&self, contract_addr: &str) -> Result<Contract<Http>> {
 		let address = utils::trim_address_str(contract_addr)?;
