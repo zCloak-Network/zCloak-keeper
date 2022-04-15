@@ -14,8 +14,8 @@ serde_json = "1"
 serde-error = "*"
 jsonrpsee = { version = "0.6.1", features = ["macros", "http-client", "ws-client"] }
 tokio = { version = "1", features = ["full"] }
-web3 = "0.17.0"
-secp256k1 = { version = "0.20", features = ["recovery"]}
+web3 = "0.18.0"
+secp256k1 = { version = "0.21", features = ["recovery"]}
 reqwest = "0.11"
 url = "2.2"
 bincode = "1.3"

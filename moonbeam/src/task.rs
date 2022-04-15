@@ -1,126 +1,130 @@
 use std::time::Duration;
 
-use keeper_primitives::{CHANNEL_LOG_TARGET, ConfigInstance, Delay, Error, JsonParse, monitor::MonitorSender, moonbeam::MOONBEAM_LOG_TARGET, MqReceiver, MqSender};
-use keeper_primitives::monitor::MonitorMetrics;
+use keeper_primitives::{
+	monitor::{MonitorMetrics, MonitorSender},
+	moonbeam::MOONBEAM_LOG_TARGET,
+	ConfigInstance, Delay, Error, JsonParse, MqReceiver, MqSender, CHANNEL_LOG_TARGET,
+};
 
 use crate::U64;
 
 use super::KeeperResult;
 
 pub async fn task_scan(
-    config: &ConfigInstance,
-    msg_sender: &mut MqSender,
-    mut start: U64,
-    monitor_sender: MonitorSender,
+	config: &ConfigInstance,
+	msg_sender: &mut MqSender,
+	mut start: U64,
+	monitor_sender: MonitorSender,
 ) -> KeeperResult<()> {
-    let mut tmp_start_cache = 0.into();
+	let mut tmp_start_cache = 0.into();
 
-    loop {
-        let maybe_best = config.moonbeam_client.best_number().await;
-        let best = match maybe_best {
-            Ok(b) => b,
-            Err(e) => {
-                log::error!(
+	loop {
+		let maybe_best = config.moonbeam_client.best_number().await;
+		let best = match maybe_best {
+			Ok(b) => b,
+			Err(e) => {
+				log::error!(
 						target: MOONBEAM_LOG_TARGET,
 						"Fail to get latest block number in tasks moonbeam scan, after #{:?} scanned, err is {:?}",
 						start,
 						 e
 					);
-                // todo: make this more tolerant, e.g. retry N times first before throw and quit
-                return Err((start, e.into()));
-            },
-        };
+				// todo: make this more tolerant, e.g. retry N times first before throw and quit
+				return Err((start, e.into()))
+			},
+		};
 
-        // local network check
-        // only work if the chain is frozen
-        if (start == tmp_start_cache) && (start == best) {
-            // do nothing here
-            continue
-        }
+		// local network check
+		// only work if the chain is frozen
+		if (start == tmp_start_cache) && (start == best) {
+			// do nothing here
+			continue
+		}
 
-        // only throw err if event parse error
-        // todo: could return and throw error instead of expect
-        let (res, end) =
-            super::scan_events(start, best, &config.moonbeam_client, &config.proof_contract)
-                .await?;
+		// only throw err if event parse error
+		// todo: could return and throw error instead of expect
+		let (res, end) =
+			super::scan_events(start, best, &config.moonbeam_client, &config.proof_contract)
+				.await?;
 
-        if res.is_some() {
-            // send result to channel
-            // unwrap MUST succeed
-            let output = res
-                .unwrap()
-                .into_bytes()
-                .map_err(|e| (start, e.into()))?;
+		if res.is_some() {
+			// send result to channel
+			// unwrap MUST succeed
+			let output = res.unwrap().into_bytes().map_err(|e| (start, e.into()))?;
 
-            let status = msg_sender.send(output).await;
-            if let Err(e) = status {
-                log::error!(
-						target: CHANNEL_LOG_TARGET,
-						"Fail to write data in block from: #{:?} into event channel file",
-						start,
-					);
-                return Err((start, e.into()));
-            }
-            // After the proofevent list successfully sent to task2
-            // reset the tmp_start_cache
-            tmp_start_cache = end;
-        } else {
-            let latest = &config.moonbeam_client.best_number().await.unwrap_or_default();
-            if start == *latest {
-                // if current start is the best number, then sleep the block duration.
-                use tokio::time::{sleep, Duration};
-                log::info!("sleep for scan block... current:{:}|best:{:}", start, latest);
-                sleep(Duration::from_secs(
-                    keeper_primitives::moonbeam::MOONBEAM_BLOCK_DURATION,
-                ))
-                    .await;
-            }
-        }
+			let status = msg_sender.send(output).await;
+			if let Err(e) = status {
+				log::error!(
+					target: CHANNEL_LOG_TARGET,
+					"Fail to write data in block from: #{:?} into event channel file",
+					start,
+				);
+				return Err((start, e.into()))
+			}
+			// After the proofevent list successfully sent to task2
+			// reset the tmp_start_cache
+			tmp_start_cache = end;
+		} else {
+			let latest = &config.moonbeam_client.best_number().await.unwrap_or_default();
+			if start == *latest {
+				// if current start is the best number, then sleep the block duration.
+				use tokio::time::{sleep, Duration};
+				log::info!("sleep for scan block... current:{:}|best:{:}", start, latest);
+				sleep(Duration::from_secs(keeper_primitives::moonbeam::MOONBEAM_BLOCK_DURATION))
+					.await;
+			}
+		}
 
-        // reset scan start point
-        start = end;
-    }
+		// reset scan start point
+		start = end;
+	}
 }
 
-
 pub async fn task_submit(
-    config: &ConfigInstance,
-    msg_receiver: &mut MqReceiver,
-    monitor_sender: MonitorSender,
+	config: &ConfigInstance,
+	msg_receiver: &mut MqReceiver,
+	monitor_sender: MonitorSender,
 ) -> std::result::Result<(), (Option<U64>, Error)> {
-    while let Ok(r) = msg_receiver.recv_timeout(Delay::new(Duration::from_secs(1))).await {
-        // while let Ok(events) = event_receiver.recv().await {
-        let r = match r {
-            Some(a) => a,
-            None => continue,
-        };
-        log::info!("recv msg in task4");
+	while let Ok(r) = msg_receiver.recv_timeout(Delay::new(Duration::from_secs(1))).await {
+		// while let Ok(events) = event_receiver.recv().await {
+		let r = match r {
+			Some(a) => a,
+			None => continue,
+		};
+		log::info!("recv msg in task4");
 
-        let inputs = serde_json::from_slice(&*r).map_err(|e| (None, e.into()))?;
+		let inputs = serde_json::from_slice(&*r).map_err(|e| (None, e.into()))?;
 
-        let res =
-            super::submit_txs(&config.aggregator_contract, config.private_key, config.keeper_address, inputs).await;
-        match res {
-            Ok(_) => {
-                r.commit().map_err(|e| (None, e.into()))?;
-            },
-            Err(e) => {
-                log::error!(
-                    target: MOONBEAM_LOG_TARGET,
-                    "Fail to submit moonbeam tx, err: {:?}",
-                    e
-                );
+		let res = super::submit_txs(
+			&config.aggregator_contract,
+			config.private_key,
+			config.keeper_address,
+			inputs,
+		)
+		.await;
+		match res {
+			Ok(_) => {
+				r.commit().map_err(|e| (None, e.into()))?;
+			},
+			Err(e) => {
+				log::error!(
+					target: MOONBEAM_LOG_TARGET,
+					"Fail to submit moonbeam tx, err: {:?}",
+					e
+				);
 
-                if cfg!(feature = "monitor") {
-                    let monitor_metrics = MonitorMetrics::new(
-                        MOONBEAM_LOG_TARGET.to_string(),
-                        None, e.into(),
-                        config.keeper_address);
-                    monitor_sender.send(monitor_metrics).await;
-                }
-            },
-        };
-    }
+				if cfg!(feature = "monitor") {
+					let monitor_metrics = MonitorMetrics::new(
+						MOONBEAM_LOG_TARGET.to_string(),
+						None,
+						e.into(),
+						config.keeper_address,
+					);
+					monitor_sender.send(monitor_metrics).await;
+				}
+			},
+		};
+	}
 
-    Ok(())
+	Ok(())
 }

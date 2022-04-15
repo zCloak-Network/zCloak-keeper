@@ -3,6 +3,7 @@
 .vscode
 .idea
 **/config.json
+**/config-local.json
 **/bot-url
 data*
 **/cache*

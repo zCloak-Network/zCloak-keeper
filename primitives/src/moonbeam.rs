@@ -18,6 +18,10 @@ pub const MOONBEAM_LISTENED_EVENT: &'static str = "AddProof";
 pub const MOONBEAM_BLOCK_DURATION: u64 = 12;
 pub const MOONBEAM_TRANSACTION_CONFIRMATIONS: usize = 2;
 pub const MOONBEAM_LOG_TARGET: &str = "Moonbeam";
+// contract function which keeper use to submit verification result
+pub const SUBMIT_VERIFICATION: &str = "submit";
+pub const SUBMIT_STATUS_QUERY: &str = "hasSubmitted";
+pub const IS_FINISHED: &str = "isFinished";
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub struct MoonbeamConfig {
@@ -126,6 +130,9 @@ pub mod utils {
 		if let Some(t) = to {
 			builder = builder.to_block(BlockNumber::Number(t));
 		}
+
+		// filter event by address
+		builder = builder.address(vec![contract.address()]);
 
 		let filter = builder.build();
 

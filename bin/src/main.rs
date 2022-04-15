@@ -1,13 +1,11 @@
-use env_logger::Env;
-use structopt::StructOpt;
 use command::Opt;
+use env_logger::Env;
 use keeper_primitives::Error;
+use structopt::StructOpt;
 
 mod command;
 mod entry;
 mod tasks;
-
-
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), Error> {

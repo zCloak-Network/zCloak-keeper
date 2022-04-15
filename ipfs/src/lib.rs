@@ -1,5 +1,3 @@
-
-
 use std::collections::BTreeMap;
 
 use keeper_primitives::{
@@ -11,7 +9,6 @@ use keeper_primitives::{
 
 pub use task::task_verify;
 mod task;
-
 
 pub async fn query_and_verify(
 	ipfs: &IpfsClient,
@@ -63,7 +60,7 @@ pub(crate) fn verify(p: &ProofEvent, context: &[u8]) -> Result<bool> {
 	let inputs = p.public_inputs();
 	let outputs = p.outputs();
 	let program_hash = p.program_hash();
-	let r = verify_proof(&program_hash, context, &inputs, &outputs)?;
+	let r = verify_proof(&program_hash, context, inputs, &outputs)?;
 	log::info!(
 		target: VERIFY_LOG_TARGET,
 		"[STARKVM] the proof {:?} is verified as {}",

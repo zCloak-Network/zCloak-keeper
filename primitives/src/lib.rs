@@ -1,10 +1,18 @@
+use crate::kilt::Attestation;
 pub use codec::{Decode, Encode};
+pub use config::{ChannelFiles, Config, ConfigInstance};
+pub use error::Error;
+pub use futures_timer::Delay;
+pub use ipfs::{IpfsClient, IpfsConfig};
+pub use kilt::{KiltClient, KiltConfig};
+pub use moonbeam::{MoonbeamClient, MoonbeamConfig};
 pub use serde::{Deserialize, Serialize};
 pub use sp_core::{
 	storage::{StorageData, StorageKey},
 	Bytes, H256 as Hash,
 };
 use std::{collections::BTreeMap, default::Default};
+pub use traits::JsonParse;
 use web3::{
 	contract::{tokens::Detokenize, Error as ContractError},
 	ethabi::Token,
@@ -13,19 +21,11 @@ use web3::{
 };
 pub use web3::{
 	contract::{Contract, Options as Web3Options},
-	transports::Http,
 	signing::{Key, SecretKeyRef},
+	transports::Http,
 	types::{Address, BlockNumber, FilterBuilder, Log, U64},
 };
-pub use futures_timer::Delay;
-use crate::kilt::Attestation;
-pub use config::{Config, ConfigInstance, ChannelFiles};
-pub use error::Error;
-pub use ipfs::{IpfsClient, IpfsConfig};
-pub use kilt::{KiltClient, KiltConfig};
-pub use moonbeam::{MoonbeamClient, MoonbeamConfig};
-pub use traits::JsonParse;
-pub use yaque::{Sender as MqSender, Receiver as MqReceiver};
+pub use yaque::{Receiver as MqReceiver, Sender as MqSender};
 
 pub mod config;
 pub mod error;
@@ -50,7 +50,7 @@ pub struct ProofEvent {
 	pub(crate) attester: Bytes32,
 	pub(crate) c_type: Bytes32,
 	pub(crate) program_hash: Bytes32,
-	pub(crate) field_name: String,
+	pub(crate) field_names: Vec<u128>,
 	pub(crate) proof_cid: String,
 	pub(crate) request_hash: Bytes32,
 	pub(crate) root_hash: Bytes32,
@@ -61,7 +61,7 @@ pub struct ProofEvent {
 const EVENT_LEN: usize = 9;
 // TODO: make it config
 pub type ProofEventEnum =
-	(Address, Bytes32, Bytes32, Bytes32, String, String, Bytes32, Bytes32, Vec<u128>);
+	(Address, Bytes32, Bytes32, Bytes32, Vec<u128>, String, Bytes32, Bytes32, Vec<u128>);
 
 impl Detokenize for ProofEvent {
 	fn from_tokens(tokens: Vec<Token>) -> std::result::Result<Self, web3::contract::Error> {
@@ -80,7 +80,7 @@ impl Detokenize for ProofEvent {
 			attester: proof_event_enum.1,
 			c_type: proof_event_enum.2,
 			program_hash: proof_event_enum.3,
-			field_name: proof_event_enum.4,
+			field_names: proof_event_enum.4,
 			proof_cid: proof_event_enum.5,
 			request_hash: proof_event_enum.6,
 			root_hash: proof_event_enum.7,
@@ -105,12 +105,8 @@ impl ProofEvent {
 		self.proof_cid.as_str()
 	}
 	// transform field name into u128 as public inputs
-	pub fn public_inputs(&self) -> Vec<u128> {
-		let hex_str = hex::encode(&self.field_name);
-		let r = u128::from_str_radix(&hex_str, 16)
-			.expect("filed_name from event must be fit into u128 range");
-		// TODO in future, other params can be part of the inputs
-		vec![r]
+	pub fn public_inputs(&self) -> &[u128] {
+		&self.field_names
 	}
 
 	// calc the output from `ProofEvent`,

@@ -4,8 +4,10 @@ use secp256k1::SecretKey;
 
 use crate::monitor::MonitorConfig;
 
-use super::{Deserialize, IpfsConfig, KiltConfig, MoonbeamConfig, Serialize};
-use super::{Address, Contract, Http, IpfsClient, KiltClient, MoonbeamClient};
+use super::{
+	Address, Contract, Deserialize, Http, IpfsClient, IpfsConfig, KiltClient, KiltConfig,
+	MoonbeamClient, MoonbeamConfig, Serialize,
+};
 
 // todo: move
 #[derive(Clone, Debug)]
@@ -14,7 +16,6 @@ pub struct ChannelFiles {
 	pub verify_to_attest: PathBuf,
 	pub attest_to_submit: PathBuf,
 }
-
 
 // todo move
 #[derive(Clone, Debug)]
@@ -64,8 +65,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 mod tests {
 	use std::path::PathBuf;
 
-	use crate::{Config, IpfsConfig, KiltConfig, MoonbeamConfig};
-	use crate::monitor::MonitorConfig;
+	use crate::{monitor::MonitorConfig, Config, IpfsConfig, KiltConfig, MoonbeamConfig};
 
 	#[test]
 	#[cfg(not(feature = "monitor"))]
@@ -86,7 +86,6 @@ mod tests {
 
 		assert_eq!(config, expect);
 	}
-
 
 	#[test]
 	#[cfg(feature = "monitor")]

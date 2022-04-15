@@ -1,4 +1,3 @@
-
 use std::collections::BTreeMap;
 
 use secp256k1::SecretKey;
@@ -6,10 +5,12 @@ use web3::signing::{Key, SecretKeyRef};
 
 use keeper_primitives::{
 	moonbeam::{
-		self, ProofEvent, MOONBEAM_LISTENED_EVENT, MOONBEAM_LOG_TARGET, MOONBEAM_SCAN_SPAN,
-		MOONBEAM_TRANSACTION_CONFIRMATIONS,
+		self, ProofEvent, IS_FINISHED, MOONBEAM_LISTENED_EVENT, MOONBEAM_LOG_TARGET,
+		MOONBEAM_SCAN_SPAN, MOONBEAM_TRANSACTION_CONFIRMATIONS, SUBMIT_STATUS_QUERY,
+		SUBMIT_VERIFICATION,
 	},
-	Contract, Address, Http, MoonbeamClient, Result as KeeperResult, VerifyResult, Web3Options, U64,
+	Address, Contract, Http, MoonbeamClient, Result as KeeperResult, VerifyResult, Web3Options,
+	U64,
 };
 
 pub use task::{task_scan, task_submit};
@@ -112,7 +113,7 @@ pub async fn submit_txs(
 		// TODO: read multiple times?
 		let has_submitted: bool = contract
 			.query(
-				"hasSubmitted",
+				SUBMIT_STATUS_QUERY,
 				(keeper_address, v.data_owner, v.request_hash),
 				None,
 				Web3Options::default(),
@@ -121,7 +122,7 @@ pub async fn submit_txs(
 			.await?;
 
 		let is_finished: bool = contract
-			.query("isFinished", (v.data_owner, v.request_hash), None, Web3Options::default(), None)
+			.query(IS_FINISHED, (v.data_owner, v.request_hash), None, Web3Options::default(), None)
 			.await?;
 
 		log::info!(
@@ -135,7 +136,7 @@ pub async fn submit_txs(
 		if !has_submitted && !is_finished {
 			let r = contract
 				.signed_call_with_confirmations(
-					"submit",
+					SUBMIT_VERIFICATION,
 					(
 						v.data_owner,
 						v.request_hash,

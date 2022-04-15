@@ -39,9 +39,9 @@
       },
       {
         "indexed": false,
-        "internalType": "string",
-        "name": "fieldName",
-        "type": "string"
+        "internalType": "uint128[]",
+        "name": "fieldNames",
+        "type": "uint128[]"
       },
       {
         "indexed": false,
@@ -144,6 +144,19 @@
   {
     "inputs": [],
     "name": "CONTRACT_MAIN_KILT",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "CONTRACT_POAP_FACTORY",
     "outputs": [
       {
         "internalType": "bytes32",
@@ -263,9 +276,9 @@
         "type": "bytes32"
       },
       {
-        "internalType": "string",
-        "name": "_fieldName",
-        "type": "string"
+        "internalType": "uint128[]",
+        "name": "_fieldNames",
+        "type": "uint128[]"
       },
       {
         "internalType": "bytes32",
