@@ -83,9 +83,11 @@ pub async fn scan_events(
 			result.entry(number).or_insert(vec![]).push(proof_event.clone().into());
 			log::info!(
 				target: MOONBEAM_LOG_TARGET,
-				"[Moonbeam] event contains request hash: {:} | root hash: {:} has been recorded",
+				"event contains data owner: {:} | request hash: {:} | root hash: {:} | calc output {:?} have been recorded",
+				hex::encode(proof_event.data_owner()),
 				hex::encode(proof_event.request_hash()),
-				hex::encode(proof_event.root_hash())
+				hex::encode(proof_event.root_hash()),
+				proof_event.raw_outputs()
 			);
 
 			log::info!(
@@ -110,6 +112,7 @@ pub async fn submit_txs(
 	res: Vec<VerifyResult>,
 ) -> std::result::Result<(), keeper_primitives::moonbeam::Error> {
 	for v in res {
+		log::info!(target: MOONBEAM_LOG_TARGET, "Ispassed before submit is {}", v.is_passed);
 		// TODO: read multiple times?
 		let has_submitted: bool = contract
 			.query(
@@ -128,7 +131,7 @@ pub async fn submit_txs(
 		log::info!(
 			target: MOONBEAM_LOG_TARGET,
 			"hasSubmitted result for request hash [{:?}] is {}, isFinished result is {:}",
-			v.request_hash,
+			hex::encode(v.request_hash),
 			has_submitted,
 			is_finished
 		);

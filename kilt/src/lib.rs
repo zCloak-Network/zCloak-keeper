@@ -28,8 +28,8 @@ pub async fn filter(client: &KiltClient, result: Vec<VerifyResult>) -> Result<Ve
 		{
 			log::info!(
 				target: KILT_LOG_TARGET,
-				"roothash: {:?} | in block #{:} has been attested",
-				i.root_hash,
+				"roothash: {:} | in block #{:} has been attested",
+				hex::encode(i.root_hash),
 				i.number
 			);
 			v.push(v_update)
@@ -85,8 +85,8 @@ pub async fn query_attestation(
 
 	log::info!(
 		target: KILT_LOG_TARGET,
-		"Kilt query result of roothash: [{:?}] is {:?}",
-		root_hash,
+		"Kilt query result of roothash: [{:}] is {:?}",
+		hex::encode(root_hash),
 		maybe_attestation
 	);
 

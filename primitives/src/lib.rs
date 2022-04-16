@@ -94,6 +94,10 @@ impl ProofEvent {
 		self.request_hash
 	}
 
+	pub fn data_owner(&self) -> Address { self.data_owner}
+
+	pub fn raw_outputs(&self) -> &[u128] { &self.expect_result }
+
 	// todo error handle?
 	// calc the output from `ProofEvent`,
 	// [exp_result_0, exp_result_1] -> [u8; 32]
