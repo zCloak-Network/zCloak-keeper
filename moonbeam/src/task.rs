@@ -30,7 +30,7 @@ pub async fn task_scan(
 						 e
 					);
 				// todo: make this more tolerant, e.g. retry N times first before throw and quit
-				return Err((start, e.into()))
+				return Err((None, e.into()))
 			},
 		};
 
@@ -50,7 +50,7 @@ pub async fn task_scan(
 		if res.is_some() {
 			// send result to channel
 			// unwrap MUST succeed
-			let output = res.unwrap().into_bytes().map_err(|e| (start, e.into()))?;
+			let output = res.unwrap().into_bytes().map_err(|e| (Some(start), e.into()))?;
 
 			let status = msg_sender.send(output).await;
 			if let Err(e) = status {
@@ -59,7 +59,7 @@ pub async fn task_scan(
 					"Fail to write data in block from: #{:?} into event channel file",
 					start,
 				);
-				return Err((start, e.into()))
+				return Err((Some(start), e.into()))
 			}
 			// After the proofevent list successfully sent to task2
 			// reset the tmp_start_cache
@@ -92,7 +92,7 @@ pub async fn task_submit(
 			None => continue,
 		};
 		log::info!("recv msg in task4");
-
+		// in theory, inputs wont be empty here
 		let inputs = serde_json::from_slice(&*r).map_err(|e| (None, e.into()))?;
 
 		let res = super::submit_txs(
@@ -102,28 +102,24 @@ pub async fn task_submit(
 			inputs,
 		)
 		.await;
-		match res {
-			Ok(_) => {
-				r.commit().map_err(|e| (None, e.into()))?;
-			},
-			Err(e) => {
-				log::error!(
-					target: MOONBEAM_LOG_TARGET,
-					"Fail to submit moonbeam tx, err: {:?}",
-					e
-				);
 
+		match res {
+			Ok(_) => {},
+			Err(e)  => {
 				if cfg!(feature = "monitor") {
 					let monitor_metrics = MonitorMetrics::new(
 						MOONBEAM_LOG_TARGET.to_string(),
-						None,
-						e.into(),
+						e.0,
+						e.1.into(),
 						config.keeper_address,
 					);
 					monitor_sender.send(monitor_metrics).await;
 				}
-			},
-		};
+			}
+		}
+
+		// submit success or fail, both commit msg
+		r.commit().map_err(|e| (None, e.into()))?;
 	}
 
 	Ok(())

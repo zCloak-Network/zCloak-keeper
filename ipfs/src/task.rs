@@ -1,6 +1,6 @@
 use crate::KeeperResult;
 use keeper_primitives::{
-	monitor::MonitorSender, ConfigInstance, Delay, Error, EventResult, JsonParse, MqReceiver,
+	monitor::MonitorSender, ConfigInstance, Delay, Error, Events, JsonParse, MqReceiver,
 	MqSender, MESSAGE_PARSE_LOG_TARGET, U64,
 };
 use std::time::Duration;
@@ -17,7 +17,7 @@ pub async fn task_verify(
 		};
 
 		// parse event from str to ProofEvent
-		let inputs = EventResult::try_from_bytes(&*events);
+		let inputs = Events::try_from_bytes(&*events);
 		let inputs = match inputs {
 			Ok(r) => r,
 			Err(e) => {
@@ -33,22 +33,27 @@ pub async fn task_verify(
 
 		let res = super::query_and_verify(&config.ipfs_client, inputs)
 			.await
-			.map_err(|e| (Some(e.0), e.1))?;
-		let status =
-			msg_queue.0.send(serde_json::to_vec(&res).map_err(|e| (None, e.into()))?).await;
+			.map_err(|e| (e.0, e.1))?;
 
-		match status {
-			Ok(_) => {
-				// delete events in channel after the events are successfully
-				// transformed and pushed into
-				// todo: get block number
-				events.commit().map_err(|e| (None, e.into()))?;
-			},
-			Err(e) => {
-				log::error!("in task2 send to queue error:{:?}", e);
-				return Err((None, e.into()));
-			},
+		if res.is_some() {
+			// todo : ugly hacking
+			let start = res.clone().unwrap().first().unwrap().number;
+			let status =
+				msg_queue.0.send(serde_json::to_vec(&res).map_err(|e| (start, e.into()))?).await;
+
+			match status {
+				Ok(_) => {
+					// delete events in channel after the events are successfully
+					// transformed and pushed into
+					events.commit().map_err(|e| (start, e.into()))?;
+				},
+				Err(e) => {
+					log::error!("in task2 send to queue error:{:?}", e);
+					return Err((None, e.into()));
+				},
+			}
 		}
+
 	}
 
 	Ok(())

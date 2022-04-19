@@ -1,25 +1,20 @@
 use std::collections::BTreeMap;
 
-use keeper_primitives::{
-	ipfs::{IpfsClient, IPFS_LOG_TARGET},
-	moonbeam::ProofEvent,
-	verify::{verify_proof, Result, VERIFY_LOG_TARGET},
-	Result as KeeperResult, VerifyResult, U64,
-};
+use keeper_primitives::{ipfs::{IpfsClient, IPFS_LOG_TARGET}, moonbeam::ProofEvent, verify::{verify_proof, Result, VERIFY_LOG_TARGET}, Result as KeeperResult, VerifyResult, U64, Events};
 
 pub use task::task_verify;
 mod task;
 
+// empty return is set to none
 pub async fn query_and_verify(
 	ipfs: &IpfsClient,
-	input: BTreeMap<U64, Vec<ProofEvent>>,
-) -> KeeperResult<Vec<VerifyResult>> {
+	input: Events,
+) -> KeeperResult<Option<Vec<VerifyResult>>> {
 	log::info!(target: IPFS_LOG_TARGET, "start querying ipfs");
 	let mut ret = vec![];
-	for (number, proofs) in input {
-		for proof in proofs {
+		for proof in input {
 			let cid_context =
-				ipfs.fetch_proof(proof.proof_cid()).await.map_err(|e| (number, e.into()))?;
+				ipfs.fetch_proof(proof.proof_cid()).await.map_err(|e| (proof.block_number(), e.into()))?;
 			log::info!(
 				target: IPFS_LOG_TARGET,
 				"ipfs proof fetched and the content length is {}",
@@ -33,27 +28,32 @@ pub async fn query_and_verify(
 							// TODO set to database in future
 							log::info!(
                             target: VERIFY_LOG_TARGET,
-                            "verify zkStark from cid context failed|event_blocknumber:{:}|cid:{:}",
-                            number, proof.proof_cid());
+                            "verify zkStark from cid context failed|event_blocknumber:{:?}|cid:{:}",
+                            &proof.block_number(), proof.proof_cid());
 						}
 						r
 					},
 					Err(e) => {
 						log::error!(
 							target: VERIFY_LOG_TARGET,
-							"verify zkStark inner error|e:{:?}|event_blocknumber:{:}|cid:{:}",
+							"verify zkStark inner error|e:{:?}|event_blocknumber:{:?}|cid:{:}",
 							e,
-							number,
+							&proof.block_number(),
 							proof.proof_cid(),
 						);
 						false
 					},
 				};
 
-			ret.push(VerifyResult::new_from_proof_event(proof, number, result));
+			ret.push(VerifyResult::new_from_proof_event(proof, result));
 		}
+
+	if ret.is_empty() {
+		Ok(None)
+	} else {
+		Ok(Some(ret))
 	}
-	Ok(ret)
+
 }
 
 pub(crate) fn verify(p: &ProofEvent, context: &[u8]) -> Result<bool> {

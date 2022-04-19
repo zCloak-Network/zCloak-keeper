@@ -28,7 +28,7 @@ pub async fn filter(client: &KiltClient, result: Vec<VerifyResult>) -> Result<Ve
 		{
 			log::info!(
 				target: KILT_LOG_TARGET,
-				"roothash: {:} | in block #{:} has been attested",
+				"roothash: {:} | in block #{:?} has been attested",
 				hex::encode(i.root_hash),
 				i.number
 			);
@@ -36,7 +36,7 @@ pub async fn filter(client: &KiltClient, result: Vec<VerifyResult>) -> Result<Ve
 		} else {
 			log::warn!(
                 target: KILT_LOG_TARGET,
-                "attestaion is not valid for this root_hash|root_hash:{:}|data owner:{:}|number:{:}",                 hex::encode(i.root_hash), hex::encode(i.data_owner.0),
+                "attestaion is not valid for this root_hash|root_hash:{:}|data owner:{:}|number:{:?}",                 hex::encode(i.root_hash), hex::encode(i.data_owner.0),
 				i.number);
 			// TODO: notice the server that user's credential is not valid on kilt
 		}

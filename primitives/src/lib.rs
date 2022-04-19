@@ -42,10 +42,11 @@ pub const CHANNEL_LOG_TARGET: &str = "Channel";
 pub const MESSAGE_PARSE_LOG_TARGET: &str = "Message Parse";
 
 pub type Bytes32 = [u8; 32];
-pub type Result<T> = std::result::Result<T, (U64, error::Error)>;
+pub type Result<T> = std::result::Result<T, (Option<U64>, error::Error)>;
 
 #[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
 pub struct ProofEvent {
+	pub(crate) block_number: Option<U64>,
 	pub(crate) data_owner: Address,
 	pub(crate) attester: Bytes32,
 	pub(crate) c_type: Bytes32,
@@ -76,6 +77,7 @@ impl Detokenize for ProofEvent {
 
 		let proof_event_enum = ProofEventEnum::from_tokens(tokens)?;
 		Ok(ProofEvent {
+			block_number: None,
 			data_owner: proof_event_enum.0,
 			attester: proof_event_enum.1,
 			c_type: proof_event_enum.2,
@@ -90,6 +92,9 @@ impl Detokenize for ProofEvent {
 }
 
 impl ProofEvent {
+	pub fn set_block_number(&mut self, number: Option<U64>) {
+		self.block_number = number;
+	}
 	pub fn request_hash(&self) -> Bytes32 {
 		self.request_hash
 	}
@@ -104,6 +109,8 @@ impl ProofEvent {
 	pub fn root_hash(&self) -> Bytes32 {
 		self.root_hash
 	}
+
+	pub fn block_number(&self) -> Option<U64> { self.block_number }
 
 	pub fn proof_cid(&self) -> &str {
 		self.proof_cid.as_str()
@@ -132,9 +139,10 @@ impl ProofEvent {
 	}
 }
 
-pub type EventResult = BTreeMap<U64, Vec<ProofEvent>>;
+pub type Events = Vec<ProofEvent>;
 
-impl traits::JsonParse for EventResult {
+// todo: no need? just use serde_json::parse
+impl traits::JsonParse for Events {
 	fn into_bytes(self) -> std::result::Result<Vec<u8>, error::Error> {
 		serde_json::to_vec(&self).map_err(|e| e.into())
 	}
@@ -146,7 +154,7 @@ impl traits::JsonParse for EventResult {
 
 #[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
 pub struct VerifyResult {
-	pub number: U64,
+	pub number: Option<U64>,
 	pub data_owner: Address,
 	pub root_hash: Bytes32,
 	pub c_type: Bytes32,
@@ -159,9 +167,9 @@ pub struct VerifyResult {
 }
 
 impl VerifyResult {
-	pub fn new_from_proof_event(p: ProofEvent, number: U64, passed: bool) -> Self {
+	pub fn new_from_proof_event(p: ProofEvent, passed: bool) -> Self {
 		VerifyResult {
-			number,
+			number: p.block_number,
 			data_owner: p.data_owner,
 			root_hash: p.root_hash,
 			c_type: p.c_type,
@@ -220,10 +228,11 @@ mod tests {
 
 	#[test]
 	fn event_result_parse_should_work() {
-		let json_str = r#"{"0x21":[{"data_owner":"0x127221418abcd357022d29f62449d98d9610dfab","attester":[76,253,46,114,43,55,11,16,21,52,58,39,201,120,152,21,216,3,253,177,132,10,170,4,6,162,107,229,90,149,255,1],"c_type":[127,46,247,33,178,146,185,183,214,120,233,248,42,176,16,225,57,96,5,88,223,128,91,188,97,160,4,30,96,182,26,24],"program_hash":[138,207,143,54,219,208,64,124,237,34,124,151,249,241,188,249,137,198,175,253,50,35,26,213,106,54,233,223,205,73,38,16],"field_name":"age","proof_cid":"QmUn4UfXdv7uJXerqy1PMfnXxYuM3xfpUC8pFZaVyJoN7H","request_hash":[94,173,49,247,138,238,243,148,66,124,21,189,107,13,78,210,69,212,74,170,249,110,90,37,128,46,16,119,10,76,17,117],"root_hash":[175,110,140,119,75,15,116,9,116,63,126,40,226,159,211,25,109,14,238,114,198,110,87,197,80,48,42,190,164,51,105,51],"expect_result":[1]}]}"#;
-		let mut test_event = EventResult::new();
+		let json_str = r#"[{"block_number": "0x21", "data_owner":"0x127221418abcd357022d29f62449d98d9610dfab","attester":[76,253,46,114,43,55,11,16,21,52,58,39,201,120,152,21,216,3,253,177,132,10,170,4,6,162,107,229,90,149,255,1],"c_type":[127,46,247,33,178,146,185,183,214,120,233,248,42,176,16,225,57,96,5,88,223,128,91,188,97,160,4,30,96,182,26,24],"program_hash":[138,207,143,54,219,208,64,124,237,34,124,151,249,241,188,249,137,198,175,253,50,35,26,213,106,54,233,223,205,73,38,16],"field_name":"age","proof_cid":"QmUn4UfXdv7uJXerqy1PMfnXxYuM3xfpUC8pFZaVyJoN7H","request_hash":[94,173,49,247,138,238,243,148,66,124,21,189,107,13,78,210,69,212,74,170,249,110,90,37,128,46,16,119,10,76,17,117],"root_hash":[175,110,140,119,75,15,116,9,116,63,126,40,226,159,211,25,109,14,238,114,198,110,87,197,80,48,42,190,164,51,105,51],"expect_result":[1]}]"#;
+		let mut test_event = vec![];
 
-		test_event.entry(33.into()).or_insert(vec![]).push(ProofEvent {
+		test_event.push(ProofEvent {
+			block_number:Some(33.into()),
 			data_owner: Address::from_str("0x127221418abcd357022d29f62449d98d9610dfab")
 				.expect("wrong address"),
 			attester: [
@@ -238,7 +247,7 @@ mod tests {
 				138, 207, 143, 54, 219, 208, 64, 124, 237, 34, 124, 151, 249, 241, 188, 249, 137,
 				198, 175, 253, 50, 35, 26, 213, 106, 54, 233, 223, 205, 73, 38, 16,
 			],
-			field_name: "age".to_string(),
+			field_names: vec![u128::from_str("age").unwrap()],
 			proof_cid: "QmUn4UfXdv7uJXerqy1PMfnXxYuM3xfpUC8pFZaVyJoN7H".to_string(),
 			request_hash: [
 				94, 173, 49, 247, 138, 238, 243, 148, 66, 124, 21, 189, 107, 13, 78, 210, 69, 212,

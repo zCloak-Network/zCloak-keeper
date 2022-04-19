@@ -2,7 +2,7 @@ use std::{str::FromStr, sync::Arc, time::Duration};
 
 use keeper_primitives::{
 	config::Error as ConfigError, kilt::KILT_LOG_TARGET, Config, ConfigInstance, Contract, Error,
-	EventResult, Http, IpfsClient, JsonParse, Key, KiltClient, MoonbeamClient, Result,
+	Http, IpfsClient, JsonParse, Key, KiltClient, MoonbeamClient, Result,
 	SecretKeyRef, VerifyResult, U64,
 };
 use log::log;
@@ -115,7 +115,7 @@ pub async fn run(
 			if cfg!(feature = "monitor") {
 				let monitor_metrics = MonitorMetrics::new(
 					MOONBEAM_LOG_TARGET.to_string(),
-					Some(e.0),
+					e.0,
 					e.1.into(),
 					config.keeper_address,
 				);
@@ -174,6 +174,7 @@ pub async fn run(
 		let config = config4.read().await;
 		let res =
 			moonbeam::task_submit(&config, &mut submit_receiver, monitor_sender4.clone()).await;
+
 		if cfg!(feature = "monitor") {
 			if let Err(e) = res {
 				let monitor_metrics = MonitorMetrics::new(

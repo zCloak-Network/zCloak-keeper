@@ -5,7 +5,7 @@ use web3::signing::{Key, SecretKeyRef};
 
 use keeper_primitives::{
 	moonbeam::{
-		self, ProofEvent, IS_FINISHED, MOONBEAM_LISTENED_EVENT, MOONBEAM_LOG_TARGET,
+		self, ProofEvent, Events, IS_FINISHED, MOONBEAM_LISTENED_EVENT, MOONBEAM_LOG_TARGET,
 		MOONBEAM_SCAN_SPAN, MOONBEAM_TRANSACTION_CONFIRMATIONS, SUBMIT_STATUS_QUERY,
 		SUBMIT_VERIFICATION,
 	},
@@ -22,7 +22,7 @@ pub async fn scan_events(
 	best: U64,
 	client: &MoonbeamClient,
 	proof_contract: &Contract<Http>,
-) -> KeeperResult<(Option<BTreeMap<U64, Vec<ProofEvent>>>, U64)> {
+) -> KeeperResult<(Option<Events>, U64)> {
 	// if start > best, reset `start` pointer to best
 	if start > best {
 		log::warn!(
@@ -54,7 +54,7 @@ pub async fn scan_events(
 	.await;
 
 	// if event parse error, return Err(start) and output error log
-	let r = match r {
+	let res = match r {
 		Ok(events) => events,
 		Err(err) => {
 			log::error!(
@@ -62,31 +62,35 @@ pub async fn scan_events(
 				"Moonbeam Scan Err: Event parse error. {:?}",
 				err
 			);
-			return Err((start, err.into()))
+			return Err((Some(start), err.into()))
 		},
 	};
 
-	let hit = r.len();
+	let hit = res.len();
 
 	if hit != 0 {
-		let mut result = BTreeMap::<U64, Vec<ProofEvent>>::default();
-		for (proof_event, log) in r {
-			let number = log.block_number.unwrap_or_else(|| {
+		let mut result = vec![];
+		for (mut proof_event, log) in res {
+			let number = log.block_number;
+			// warn
+			if number.is_none() {
 				log::warn!(
 					target: MOONBEAM_LOG_TARGET,
 					"Moonbeam log blocknumber should not be None"
 				);
-				// TODO: any situation that block_number could be None?
-				Default::default()
-			});
+			}
+			// complete proof event
+			proof_event.set_block_number(number);
 
-			result.entry(number).or_insert(vec![]).push(proof_event.clone().into());
+			result.push(proof_event.clone());
 			log::info!(
 				target: MOONBEAM_LOG_TARGET,
-				"event contains data owner: {:} | request hash: {:} | root hash: {:} | calc output {:?} have been recorded",
+				"event in block {:?} contains data owner: {:} | request hash: {:} | root hash: {:} | program hash is {:} | calc output {:?} have been recorded",
+				number,
 				hex::encode(proof_event.data_owner()),
 				hex::encode(proof_event.request_hash()),
 				hex::encode(proof_event.root_hash()),
+				hex::encode(proof_event.program_hash()),
 				proof_event.raw_outputs()
 			);
 
@@ -95,7 +99,7 @@ pub async fn scan_events(
 				start,
 				end,
 				hit,
-				result.keys().into_iter().map(|n| *n).collect::<Vec<U64>>()
+				number
 			);
 		}
 
@@ -110,9 +114,9 @@ pub async fn submit_txs(
 	keeper_pri: SecretKey,
 	keeper_address: Address,
 	res: Vec<VerifyResult>,
-) -> std::result::Result<(), keeper_primitives::moonbeam::Error> {
+) -> std::result::Result<(), (Option<U64>, keeper_primitives::moonbeam::Error)> {
 	for v in res {
-		log::info!(target: MOONBEAM_LOG_TARGET, "Ispassed before submit is {}", v.is_passed);
+		log::info!(target: MOONBEAM_LOG_TARGET, "IsPassed before submit is {}", v.is_passed);
 		// TODO: read multiple times?
 		let has_submitted: bool = contract
 			.query(
@@ -122,11 +126,11 @@ pub async fn submit_txs(
 				Web3Options::default(),
 				None,
 			)
-			.await?;
+			.await.map_err(|e| (v.number, e.into()))?;
 
 		let is_finished: bool = contract
 			.query(IS_FINISHED, (v.data_owner, v.request_hash), None, Web3Options::default(), None)
-			.await?;
+			.await.map_err(|e| (v.number, e.into()))?;
 
 		log::info!(
 			target: MOONBEAM_LOG_TARGET,
@@ -150,6 +154,7 @@ pub async fn submit_txs(
 						v.calc_output,
 					),
 					{
+						// todo: auto adjust options here
 						let mut options = Web3Options::default();
 						options.gas = Some(1000000.into());
 						options
@@ -179,7 +184,8 @@ pub async fn submit_txs(
 						hex::encode(v.root_hash),
 						hex::encode(v.request_hash),
 						e
-					)
+					);
+					return Err((v.number, e.into()))
 				},
 			}
 		}

@@ -1,5 +1,5 @@
 use keeper_primitives::{
-	monitor::MonitorSender, ConfigInstance, Delay, Error, EventResult, JsonParse, MqReceiver,
+	monitor::MonitorSender, ConfigInstance, Delay, Error, MqReceiver,
 	MqSender, CHANNEL_LOG_TARGET, U64,
 };
 use std::time::Duration;
@@ -19,7 +19,7 @@ pub async fn task_attestation(
 		let inputs = serde_json::from_slice(&*r).map_err(|e| (None, e.into()))?;
 
 		// have handled resoluble error inside filter
-		let res = super::filter(&config.kilt_client, inputs).await.map_err(|e| (Some(e.0), e.1))?;
+		let res = super::filter(&config.kilt_client, inputs).await.map_err(|e| (e.0, e.1))?;
 
 		if !res.is_empty() {
 			let message_to_send = serde_json::to_vec(&res);
