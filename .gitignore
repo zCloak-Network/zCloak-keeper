@@ -2,7 +2,7 @@
 **/target
 .vscode
 .idea
-**/config.json
+**/config*
 **/config-local*
 **/bot-url
 data*

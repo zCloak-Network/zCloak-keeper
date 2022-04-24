@@ -80,7 +80,7 @@ start zCloak Keeper
 
 for instance:
 ```bash
-zcloak-keeper start --config ./config.json --cache-dir ./data --start-number 100
+zcloak-keeper start --config ./config1.json --cache-dir ./data --start-number 100
 ```
 
 ```bash
