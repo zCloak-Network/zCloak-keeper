@@ -1,8 +1,8 @@
 use keeper_primitives::{
-	Events,
-	ipfs::{IPFS_LOG_TARGET, IpfsClient},
+	ipfs::{IpfsClient, IPFS_LOG_TARGET},
 	moonbeam::ProofEvent,
-	Result as KeeperResult, verify::{Result, VERIFY_LOG_TARGET, verify_proof}, VerifyResult,
+	verify::{verify_proof, Result, VERIFY_LOG_TARGET},
+	Events, Result as KeeperResult, VerifyResult,
 };
 pub use task::task_verify;
 

@@ -1,4 +1,4 @@
-use futures::{future, Future, future::FutureExt, pin_mut, select};
+use futures::{future, future::FutureExt, pin_mut, select, Future};
 
 use super::Error;
 

@@ -1,10 +1,10 @@
-use std::{fs::File, path::PathBuf};
-use secp256k1::SecretKey;
-use crate::monitor::MonitorConfig;
 use super::{
 	Address, Contract, Deserialize, Http, IpfsClient, IpfsConfig, KiltClient, KiltConfig,
 	MoonbeamClient, MoonbeamConfig, Serialize,
 };
+use crate::monitor::MonitorConfig;
+use secp256k1::SecretKey;
+use std::{fs::File, path::PathBuf};
 
 // todo: move
 #[derive(Clone, Debug)]
@@ -62,14 +62,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 mod tests {
 	use std::path::PathBuf;
 
-	use crate::{Config, monitor::MonitorConfig};
+	use crate::{monitor::MonitorConfig, Config};
 
 	#[test]
 	#[cfg(not(feature = "monitor"))]
 	fn config_parse_should_work() {
 		let path = PathBuf::from("./res/config-example.json");
 		let config = Config::load_from_json(&path).unwrap();
-
+		use crate::{IpfsConfig, KiltConfig, MoonbeamConfig};
 		let expect = Config {
 			moonbeam: MoonbeamConfig {
 				url: "http://127.0.0.1:7545".to_string(),

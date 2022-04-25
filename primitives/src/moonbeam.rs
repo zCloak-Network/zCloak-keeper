@@ -2,16 +2,16 @@ use web3::{
 	self as web3,
 	api::Eth,
 	contract::{
-		Contract,
-		Error as Web3ContractErr, tokens::{Detokenize, Tokenize},
+		tokens::{Detokenize, Tokenize},
+		Contract, Error as Web3ContractErr,
 	},
 	ethabi,
-	Transport,
 	transports::Http,
+	Transport,
 };
 
 pub use super::*;
-use super::{Serialize, Deserialize};
+use super::{Deserialize, Serialize};
 
 pub const MOONBEAM_SCAN_SPAN: usize = 10;
 // TODO: move it to config file

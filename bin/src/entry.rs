@@ -1,20 +1,28 @@
+use log::info;
 use std::{str::FromStr, sync::Arc};
-
 
 use tokio::sync::RwLock;
 use yaque::{channel, recovery};
 
 use keeper_primitives::{
-	Config,
 	config::Error as ConfigError,
-	ConfigInstance,
-	Error,
 	ipfs::{Error as IpfsError, IPFS_LOG_TARGET},
-	IpfsClient,
-	Key, kilt::{Error as KiltError, KILT_LOG_TARGET}, KiltClient, monitor, monitor::MonitorMetrics, moonbeam::{Error as MoonbeamError, MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET}, MoonbeamClient, SecretKeyRef, U64,
+	kilt::{Error as KiltError, KILT_LOG_TARGET},
+	monitor,
+	monitor::MonitorMetrics,
+	moonbeam::{Error as MoonbeamError, MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET},
+	Config, ConfigInstance, Error, IpfsClient, Key, KiltClient, MoonbeamClient, SecretKeyRef, U64,
 };
 
 use crate::command::StartOptions;
+
+const SLEEP_SECS: u64 = 5;
+
+// TODO move
+async fn sleep() {
+	info!("sleep for web3 error, waiting for {:} secs", SLEEP_SECS);
+	tokio::time::sleep(std::time::Duration::from_secs(SLEEP_SECS)).await;
+}
 
 pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error> {
 	// load config
@@ -134,7 +142,12 @@ pub async fn run(
 				match e.1 {
 					// connection error, do nothing, just re scan
 					Error::MoonbeamError(MoonbeamError::Web3Error(_)) |
-					Error::MoonbeamError(MoonbeamError::Web3ContractError(_)) => continue,
+					Error::MoonbeamError(MoonbeamError::Web3ContractError(_)) => {
+						// todo: make this more tolerant, e.g. retry N times first before throw and
+						// quit
+						sleep().await;
+						continue
+					},
 					_ => return e,
 				};
 			}
@@ -167,7 +180,11 @@ pub async fn run(
 				}
 				// start refetching ipfs proof if connection error encountered
 				match e.1 {
-					Error::IpfsError(IpfsError::HttpError(_)) => continue,
+					Error::IpfsError(IpfsError::HttpError(_)) => {
+						// TODO move retry here
+						sleep().await;
+						continue
+					},
 					_ => return e,
 				};
 			}
@@ -195,7 +212,11 @@ pub async fn run(
 				}
 
 				match e.1 {
-					Error::KiltError(KiltError::KiltClientError(_e)) => continue,
+					Error::KiltError(KiltError::KiltClientError(_e)) => {
+						// TODO need retry
+						sleep().await;
+						continue
+					},
 					_ => return e,
 				};
 			}
@@ -222,7 +243,11 @@ pub async fn run(
 
 				match e.1 {
 					Error::MoonbeamError(MoonbeamError::Web3Error(_)) |
-					Error::MoonbeamError(MoonbeamError::Web3ContractError(_)) => continue,
+					Error::MoonbeamError(MoonbeamError::Web3ContractError(_)) => {
+						// todo need retry
+						sleep().await;
+						continue
+					},
 					_ => return e,
 				};
 			}

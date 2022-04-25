@@ -1,6 +1,6 @@
-use std::time::Duration;
-use super::{Serialize, Deserialize};
+use super::{Deserialize, Serialize};
 use reqwest::Client;
+use std::time::Duration;
 
 pub const IPFS_LOG_TARGET: &str = "IPFS";
 

@@ -93,10 +93,10 @@ mod tests {
 	use std::str::FromStr;
 
 	use crate::{
-		Address,
 		monitor::{alert, MonitorMetrics},
-		};
-	use crate::moonbeam::MOONBEAM_SCAN_LOG_TARGET;
+		moonbeam::MOONBEAM_SCAN_LOG_TARGET,
+		Address,
+	};
 
 	#[inline]
 	fn new_monitor_metrics() -> MonitorMetrics {

@@ -1,14 +1,13 @@
 use secp256k1::SecretKey;
 
-
 use keeper_primitives::{
-	Address,
-	Contract, Http, moonbeam::{
-		self, Events, IS_FINISHED, MOONBEAM_LISTENED_EVENT, MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SCAN_SPAN,
-		MOONBEAM_SUBMIT_LOG_TARGET, MOONBEAM_TRANSACTION_CONFIRMATIONS, ProofEvent,
+	moonbeam::{
+		self, Events, ProofEvent, IS_FINISHED, MOONBEAM_LISTENED_EVENT, MOONBEAM_SCAN_LOG_TARGET,
+		MOONBEAM_SCAN_SPAN, MOONBEAM_SUBMIT_LOG_TARGET, MOONBEAM_TRANSACTION_CONFIRMATIONS,
 		SUBMIT_STATUS_QUERY, SUBMIT_VERIFICATION,
-	}, MoonbeamClient, Result as KeeperResult, U64, VerifyResult,
-	Web3Options,
+	},
+	Address, Contract, Http, MoonbeamClient, Result as KeeperResult, VerifyResult, Web3Options,
+	U64,
 };
 pub use task::{task_scan, task_submit};
 

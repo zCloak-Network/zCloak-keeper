@@ -1,13 +1,13 @@
-use std::default::Default;
 pub use codec::{Decode, Encode};
 pub use futures_timer::Delay;
 pub use serde::{Deserialize, Serialize};
 pub use sp_core::{
-	Bytes,
-	H256 as Hash, storage::{StorageData, StorageKey},
+	storage::{StorageData, StorageKey},
+	Bytes, H256 as Hash,
 };
+use std::default::Default;
 use web3::{
-	contract::{Error as ContractError, tokens::Detokenize},
+	contract::{tokens::Detokenize, Error as ContractError},
 	ethabi::Token,
 	Web3,
 };
@@ -206,7 +206,7 @@ mod tests {
 
 	use web3::types::Address;
 
-	use crate::{ProofEvent, traits::JsonParse, VerifyResult};
+	use crate::{traits::JsonParse, ProofEvent, VerifyResult};
 
 	#[test]
 	fn proof_event_parse_should_work() {

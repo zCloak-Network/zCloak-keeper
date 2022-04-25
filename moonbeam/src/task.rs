@@ -1,10 +1,10 @@
+use crate::U64;
 use keeper_primitives::{
-	CHANNEL_LOG_TARGET,
-	ConfigInstance,
-	Delay, Error, JsonParse, monitor::{MonitorMetrics, MonitorSender}, moonbeam::{MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET}, MqReceiver, MqSender,
+	monitor::{MonitorMetrics, MonitorSender},
+	moonbeam::{MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET},
+	ConfigInstance, Delay, Error, JsonParse, MqReceiver, MqSender, CHANNEL_LOG_TARGET,
 };
 use tokio::time::{sleep, Duration};
-use crate::U64;
 
 use super::KeeperResult;
 
@@ -27,7 +27,6 @@ pub async fn task_scan(
 						start,
 						 e
 					);
-				// todo: make this more tolerant, e.g. retry N times first before throw and quit
 				return Err((None, e.into()))
 			},
 		};
