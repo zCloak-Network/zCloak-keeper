@@ -1,22 +1,14 @@
-use crate::kilt::Attestation;
+use std::default::Default;
 pub use codec::{Decode, Encode};
-pub use config::{ChannelFiles, Config, ConfigInstance};
-pub use error::Error;
 pub use futures_timer::Delay;
-pub use ipfs::{IpfsClient, IpfsConfig};
-pub use kilt::{KiltClient, KiltConfig};
-pub use moonbeam::{MoonbeamClient, MoonbeamConfig};
 pub use serde::{Deserialize, Serialize};
 pub use sp_core::{
-	storage::{StorageData, StorageKey},
-	Bytes, H256 as Hash,
+	Bytes,
+	H256 as Hash, storage::{StorageData, StorageKey},
 };
-use std::{collections::BTreeMap, default::Default};
-pub use traits::JsonParse;
 use web3::{
-	contract::{tokens::Detokenize, Error as ContractError},
+	contract::{Error as ContractError, tokens::Detokenize},
 	ethabi::Token,
-	types::Res,
 	Web3,
 };
 pub use web3::{
@@ -26,6 +18,15 @@ pub use web3::{
 	types::{Address, BlockNumber, FilterBuilder, Log, U64},
 };
 pub use yaque::{Receiver as MqReceiver, Sender as MqSender};
+
+pub use config::{ChannelFiles, Config, ConfigInstance};
+pub use error::Error;
+pub use ipfs::{IpfsClient, IpfsConfig};
+pub use kilt::{KiltClient, KiltConfig};
+pub use moonbeam::{MoonbeamClient, MoonbeamConfig};
+pub use traits::JsonParse;
+
+use crate::kilt::Attestation;
 
 pub mod config;
 pub mod error;
@@ -201,14 +202,16 @@ impl VerifyResult {
 
 #[cfg(test)]
 mod tests {
-	use crate::{traits::JsonParse, Bytes32, EventResult, ProofEvent, VerifyResult};
 	use std::str::FromStr;
+
 	use web3::types::Address;
+
+	use crate::{ProofEvent, traits::JsonParse, VerifyResult};
 
 	#[test]
 	fn proof_event_parse_should_work() {
 		let json_str = r#"{"data_owner":"0x127221418abcd357022d29f62449d98d9610dfab", "attester":[76,253,46,114,43,55,11,16,21,52,58,39,201,120,152,21,216,3,253,177,132,10,170,4,6,162,107,229,90,149,255,1],"c_type":[127,46,247,33,178,146,185,183,214,120,233,248,42,176,16,225,57,96,5,88,223,128,91,188,97,160,4,30,96,182,26,24],"program_hash":[138,207,143,54,219,208,64,124,237,34,124,151,249,241,188,249,137,198,175,253,50,35,26,213,106,54,233,223,205,73,38,16],"field_name":"age","proof_cid":"QmUn4UfXdv7uJXerqy1PMfnXxYuM3xfpUC8pFZaVyJoN7H","request_hash":[94,173,49,247,138,238,243,148,66,124,21,189,107,13,78,210,69,212,74,170,249,110,90,37,128,46,16,119,10,76,17,117],"root_hash": [175, 110, 140, 119, 75, 15, 116, 9, 116, 63, 126, 40, 226, 159, 211, 25, 109, 14, 238,	114, 198, 110, 87, 197, 80, 48, 42, 190, 164, 51, 105, 51], "expect_result":[1]}"#;
-		let mut test_event: ProofEvent =
+		let test_event: ProofEvent =
 			serde_json::from_str(json_str).expect("wrong proof event json");
 
 		let root_hash = test_event.root_hash();
@@ -221,7 +224,7 @@ mod tests {
 	#[test]
 	fn verify_result_parse_should_work() {
 		let exp_verify_result_str = r#"{"number":"0x0","data_owner":"0x0000000000000000000000000000000000000000","root_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"c_type":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"program_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"request_hash":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"attester":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"is_passed":false,"calc_output":[]}"#;
-		let exp_verify_result_bytes = exp_verify_result_str.as_bytes();
+		let _exp_verify_result_bytes = exp_verify_result_str.as_bytes();
 		let v_res = VerifyResult::default();
 		let v_res_bytes = serde_json::to_vec(&v_res).unwrap();
 		assert_eq!(std::str::from_utf8(&v_res_bytes).unwrap(), exp_verify_result_str);
@@ -253,7 +256,7 @@ mod tests {
 				138, 207, 143, 54, 219, 208, 64, 124, 237, 34, 124, 151, 249, 241, 188, 249, 137,
 				198, 175, 253, 50, 35, 26, 213, 106, 54, 233, 223, 205, 73, 38, 16,
 			],
-			field_names: vec![u128::from_str("age").unwrap()],
+			field_names: vec![u128::from_str_radix(&hex::encode("age"), 16).unwrap()],
 			proof_cid: "QmUn4UfXdv7uJXerqy1PMfnXxYuM3xfpUC8pFZaVyJoN7H".to_string(),
 			request_hash: [
 				94, 173, 49, 247, 138, 238, 243, 148, 66, 124, 21, 189, 107, 13, 78, 210, 69, 212,
@@ -268,17 +271,12 @@ mod tests {
 
 		let event_str = test_event.into_bytes().unwrap();
 		assert_eq!(std::str::from_utf8(&event_str).unwrap(), json_str);
-
-		let event_res = EventResult::try_from_bytes(json_str.as_bytes()).unwrap();
-		let event_res_value = event_res.get_key_value(&33.into()).unwrap().1;
-		let test_event_value = event_res.get_key_value(&33.into()).unwrap().1;
-		assert_eq!(*event_res_value, *test_event_value);
 	}
 
 	#[test]
 	fn bytes32_segament_parse_should_correct() {
 		// 6b696c744163636f756e74000000000000000000000000000000000000000000
-		let kilt_address_slice = [
+		let _kilt_address_slice = [
 			107, 105, 108, 116, 65, 99, 99, 111, 117, 110, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			0, 0, 0, 0, 0, 0, 0, 0, 0,
 		];
@@ -297,7 +295,7 @@ mod tests {
 			138, 207, 143, 54, 219, 208, 64, 124, 237, 34, 124, 151, 249, 241, 188, 249, 137, 198,
 			175, 253, 50, 35, 26, 213, 106, 54, 233, 223, 205, 73, 38, 16,
 		];
-		let request_hash_slice = [
+		let _request_hash_slice = [
 			94, 173, 49, 247, 138, 238, 243, 148, 66, 124, 21, 189, 107, 13, 78, 210, 69, 212, 74,
 			170, 249, 110, 90, 37, 128, 46, 16, 119, 10, 76, 17, 117,
 		];

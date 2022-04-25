@@ -1,12 +1,13 @@
-use super::{Address, Deserialize, Serialize, U64};
+use std::collections::HashMap;
+
 use reqwest::Client;
-use std::{collections::HashMap, fmt::format};
 use strfmt::Format;
 use tokio::{
-	sync::mpsc::{error::SendError, Receiver, Sender},
+	sync::mpsc::{Receiver, Sender},
 	time::Duration,
 };
-use web3::types::Res;
+
+use super::{Address, Deserialize, Serialize, U64};
 
 const TIME_OUT: Duration = Duration::from_secs(5);
 
@@ -89,20 +90,20 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[cfg(test)]
 mod tests {
+	use std::str::FromStr;
+
 	use crate::{
-		monitor::{alert, MonitorMetrics},
-		moonbeam::MOONBEAM_LOG_TARGET,
 		Address,
-	};
-	use std::{collections::HashMap, str::FromStr};
-	use strfmt::{strfmt, Format};
+		monitor::{alert, MonitorMetrics},
+		};
+	use crate::moonbeam::MOONBEAM_SCAN_LOG_TARGET;
 
 	#[inline]
 	fn new_monitor_metrics() -> MonitorMetrics {
 		MonitorMetrics {
-			target: MOONBEAM_LOG_TARGET.to_string(),
+			target: MOONBEAM_SCAN_LOG_TARGET.to_string(),
 			block_number: Some(32.into()),
-			error: crate::Error::OtherError("Test Error".to_owned()),
+			error_msg: "Test error message".to_string(),
 			keeper_address: Address::from_str("9dD21AdF685CBf76bD3288AEdC5A62b9AddBcd8d")
 				.expect("Wrong address format"),
 		}

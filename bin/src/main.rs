@@ -1,8 +1,9 @@
-use command::Opt;
 use env_logger::Env;
 use futures::FutureExt;
-use keeper_primitives::Error;
 use structopt::StructOpt;
+
+use command::Opt;
+use keeper_primitives::Error;
 
 mod command;
 mod entry;

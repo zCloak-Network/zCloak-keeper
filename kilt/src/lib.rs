@@ -1,11 +1,11 @@
 use jsonrpsee::types::Error as RpcError;
 
 use keeper_primitives::{
-	kilt::{
-		get_attestation_storage_key, Attestation, Error, KiltClient, KILT_LOG_TARGET,
-		KILT_MAX_RETRY_TIMES,
-	},
-	Decode, Hash, Result, VerifyResult,
+	Decode,
+	Hash, kilt::{
+		Attestation, Error, get_attestation_storage_key, KILT_LOG_TARGET, KILT_MAX_RETRY_TIMES,
+		KiltClient,
+	}, Result, VerifyResult,
 };
 pub use task::task_attestation;
 
@@ -101,7 +101,7 @@ mod tests {
 
 	use keeper_primitives::{kilt::Attestation, KiltClient};
 
-	use crate::{query_attestation, Hash};
+	use crate::{Hash, query_attestation};
 
 	#[inline]
 	fn attest_exp() -> Attestation {

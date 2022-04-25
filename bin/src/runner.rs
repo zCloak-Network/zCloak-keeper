@@ -1,5 +1,6 @@
+use futures::{future, Future, future::FutureExt, pin_mut, select};
+
 use super::Error;
-use futures::{future, future::FutureExt, pin_mut, select, Future};
 
 #[cfg(target_family = "unix")]
 pub async fn run_until_exit<F>(func: F) -> std::result::Result<(), Error>

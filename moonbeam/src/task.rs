@@ -1,11 +1,9 @@
-use std::time::Duration;
-
 use keeper_primitives::{
-	monitor::{MonitorMetrics, MonitorSender},
-	moonbeam::{MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET},
-	ConfigInstance, Delay, Error, JsonParse, MqReceiver, MqSender, CHANNEL_LOG_TARGET,
+	CHANNEL_LOG_TARGET,
+	ConfigInstance,
+	Delay, Error, JsonParse, monitor::{MonitorMetrics, MonitorSender}, moonbeam::{MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET}, MqReceiver, MqSender,
 };
-
+use tokio::time::{sleep, Duration};
 use crate::U64;
 
 use super::KeeperResult;
@@ -14,7 +12,7 @@ pub async fn task_scan(
 	config: &ConfigInstance,
 	msg_sender: &mut MqSender,
 	mut start: U64,
-	monitor_sender: MonitorSender,
+	_monitor_sender: MonitorSender,
 ) -> KeeperResult<()> {
 	let mut tmp_start_cache = 0.into();
 
@@ -68,7 +66,6 @@ pub async fn task_scan(
 			let latest = &config.moonbeam_client.best_number().await.unwrap_or_default();
 			if start == *latest {
 				// if current start is the best number, then sleep the block duration.
-				use tokio::time::{sleep, Duration};
 				log::info!("sleep for scan block... current:{:}|best:{:}", start, latest);
 				sleep(Duration::from_secs(keeper_primitives::moonbeam::MOONBEAM_BLOCK_DURATION))
 					.await;

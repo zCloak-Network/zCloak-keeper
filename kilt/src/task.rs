@@ -1,8 +1,9 @@
+use std::time::Duration;
+
 use keeper_primitives::{
-	monitor::MonitorSender, ConfigInstance, Delay, Error, MqReceiver, MqSender, CHANNEL_LOG_TARGET,
+	CHANNEL_LOG_TARGET, ConfigInstance, Delay, Error, MqReceiver, MqSender,
 	U64,
 };
-use std::time::Duration;
 
 pub async fn task_attestation(
 	config: &ConfigInstance,

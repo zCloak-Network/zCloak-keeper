@@ -1,19 +1,17 @@
-use std::{str::FromStr, sync::Arc, time::Duration};
+use std::{str::FromStr, sync::Arc};
 
-use log::log;
-use secp256k1::SecretKey;
-use tokio::{io, sync::RwLock};
+
+use tokio::sync::RwLock;
 use yaque::{channel, recovery};
 
 use keeper_primitives::{
+	Config,
 	config::Error as ConfigError,
+	ConfigInstance,
+	Error,
 	ipfs::{Error as IpfsError, IPFS_LOG_TARGET},
-	kilt::{Error as KiltError, KILT_LOG_TARGET},
-	monitor,
-	monitor::MonitorMetrics,
-	moonbeam::{Error as MoonbeamError, MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET},
-	Config, ConfigInstance, Contract, Error, Http, IpfsClient, JsonParse, Key, KiltClient,
-	MoonbeamClient, Result, SecretKeyRef, VerifyResult, U64,
+	IpfsClient,
+	Key, kilt::{Error as KiltError, KILT_LOG_TARGET}, KiltClient, monitor, monitor::MonitorMetrics, moonbeam::{Error as MoonbeamError, MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET}, MoonbeamClient, SecretKeyRef, U64,
 };
 
 use crate::command::StartOptions;
@@ -74,7 +72,7 @@ pub async fn run(
 ) -> std::result::Result<(), keeper_primitives::Error> {
 	// it record the latest block that contains proofevents
 	// used in ganache
-	let mut start = start;
+	let start = start;
 
 	// get channel files
 	let config = configs.clone();

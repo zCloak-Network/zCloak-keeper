@@ -1,9 +1,9 @@
-use crate::KeeperResult;
-use keeper_primitives::{
-	monitor::MonitorSender, ConfigInstance, Delay, Error, Events, JsonParse, MqReceiver, MqSender,
-	MESSAGE_PARSE_LOG_TARGET, U64,
-};
 use std::time::Duration;
+
+use keeper_primitives::{
+	ConfigInstance, Delay, Error, Events, JsonParse, MESSAGE_PARSE_LOG_TARGET, MqReceiver,
+	MqSender, U64,
+};
 
 // todo: get block number in error return
 pub async fn task_verify(

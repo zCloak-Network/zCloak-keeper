@@ -1,13 +1,11 @@
-use std::collections::BTreeMap;
-
 use keeper_primitives::{
-	ipfs::{IpfsClient, IPFS_LOG_TARGET},
+	Events,
+	ipfs::{IPFS_LOG_TARGET, IpfsClient},
 	moonbeam::ProofEvent,
-	verify::{verify_proof, Result, VERIFY_LOG_TARGET},
-	Events, Result as KeeperResult, VerifyResult, U64,
+	Result as KeeperResult, verify::{Result, VERIFY_LOG_TARGET, verify_proof}, VerifyResult,
 };
-
 pub use task::task_verify;
+
 mod task;
 
 // empty return is set to none

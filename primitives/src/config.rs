@@ -1,9 +1,6 @@
 use std::{fs::File, path::PathBuf};
-
 use secp256k1::SecretKey;
-
 use crate::monitor::MonitorConfig;
-
 use super::{
 	Address, Contract, Deserialize, Http, IpfsClient, IpfsConfig, KiltClient, KiltConfig,
 	MoonbeamClient, MoonbeamConfig, Serialize,
@@ -65,7 +62,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 mod tests {
 	use std::path::PathBuf;
 
-	use crate::{monitor::MonitorConfig, Config, IpfsConfig, KiltConfig, MoonbeamConfig};
+	use crate::{Config, monitor::MonitorConfig};
 
 	#[test]
 	#[cfg(not(feature = "monitor"))]

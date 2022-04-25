@@ -1,14 +1,12 @@
-use super::*;
 use codec::{Decode, Encode};
 use frame_metadata::StorageHasher;
 use jsonrpsee::{
 	http_client::{HttpClient, HttpClientBuilder},
-	types::{to_json_value, traits::Client, Error as RpcError},
-	ws_client::{WsClient, WsClientBuilder},
+	types::{Error as RpcError, to_json_value, traits::Client},
 };
-use serde::{Deserialize, Serialize};
-
 use sp_runtime::AccountId32 as AccountId;
+use super::{Serialize, Deserialize};
+use super::*;
 
 pub const KILT_LOG_TARGET: &str = "KILT";
 const ATTESTATION_PALLET_PREFIX: &'static str = "Attestation";

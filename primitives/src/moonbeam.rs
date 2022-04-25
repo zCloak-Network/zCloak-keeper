@@ -2,15 +2,16 @@ use web3::{
 	self as web3,
 	api::Eth,
 	contract::{
-		tokens::{Detokenize, Tokenize},
-		Contract, Error as Web3ContractErr,
+		Contract,
+		Error as Web3ContractErr, tokens::{Detokenize, Tokenize},
 	},
 	ethabi,
-	transports::Http,
 	Transport,
+	transports::Http,
 };
 
 pub use super::*;
+use super::{Serialize, Deserialize};
 
 pub const MOONBEAM_SCAN_SPAN: usize = 10;
 // TODO: move it to config file
@@ -190,16 +191,9 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[cfg(test)]
 mod tests {
-	use std::str::FromStr;
-	use web3::transports::Http;
-
-	use crate::{Address, MoonbeamClient, U64};
-
-	use super::*;
-
 	#[test]
 	fn test_cargo_env_variables() {
-		let contract_name = "KiltProofs";
+		let _contract_name = "KiltProofs";
 		let bytes = include_bytes!("../contracts/ProofStorage.json");
 		assert!(bytes.len() != 0);
 	}

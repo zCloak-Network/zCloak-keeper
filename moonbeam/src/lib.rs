@@ -1,19 +1,17 @@
-use std::collections::BTreeMap;
-
 use secp256k1::SecretKey;
-use web3::signing::{Key, SecretKeyRef};
+
 
 use keeper_primitives::{
-	moonbeam::{
-		self, Events, ProofEvent, IS_FINISHED, MOONBEAM_LISTENED_EVENT, MOONBEAM_SCAN_LOG_TARGET,
-		MOONBEAM_SCAN_SPAN, MOONBEAM_SUBMIT_LOG_TARGET, MOONBEAM_TRANSACTION_CONFIRMATIONS,
+	Address,
+	Contract, Http, moonbeam::{
+		self, Events, IS_FINISHED, MOONBEAM_LISTENED_EVENT, MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SCAN_SPAN,
+		MOONBEAM_SUBMIT_LOG_TARGET, MOONBEAM_TRANSACTION_CONFIRMATIONS, ProofEvent,
 		SUBMIT_STATUS_QUERY, SUBMIT_VERIFICATION,
-	},
-	Address, Contract, Http, MoonbeamClient, Result as KeeperResult, VerifyResult, Web3Options,
-	U64,
+	}, MoonbeamClient, Result as KeeperResult, U64, VerifyResult,
+	Web3Options,
 };
-
 pub use task::{task_scan, task_submit};
+
 mod task;
 
 // scan moonbeam events
