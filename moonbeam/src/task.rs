@@ -104,22 +104,20 @@ pub async fn task_submit(
 		.await;
 
 		match res {
-			Ok(_) => {},
-			Err(e)  => {
+			Ok(_) => {
+				r.commit().map_err(|e| (None, e.into()))?;
+			},
+			Err(e) =>
 				if cfg!(feature = "monitor") {
 					let monitor_metrics = MonitorMetrics::new(
 						MOONBEAM_SUBMIT_LOG_TARGET.to_string(),
 						e.0,
-						e.1.into(),
+						&e.1.into(),
 						config.keeper_address,
 					);
 					monitor_sender.send(monitor_metrics).await;
-				}
-			}
+				},
 		}
-
-		// submit success or fail, both commit msg
-		r.commit().map_err(|e| (None, e.into()))?;
 	}
 
 	Ok(())

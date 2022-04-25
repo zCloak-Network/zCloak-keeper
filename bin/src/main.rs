@@ -1,13 +1,13 @@
 use command::Opt;
 use env_logger::Env;
+use futures::FutureExt;
 use keeper_primitives::Error;
 use structopt::StructOpt;
-use futures::FutureExt;
 
 mod command;
 mod entry;
-mod tasks;
 mod runner;
+mod tasks;
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), Error> {
@@ -20,7 +20,7 @@ async fn main() -> std::result::Result<(), Error> {
 		Opt::Start { options } => {
 			let f = entry::start(options);
 			let f = f.fuse();
-			runner::main(f).await?;
+			runner::run_until_exit(f).await?;
 		},
 	}
 	Ok(())

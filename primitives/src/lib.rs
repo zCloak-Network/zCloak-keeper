@@ -99,9 +99,13 @@ impl ProofEvent {
 		self.request_hash
 	}
 
-	pub fn data_owner(&self) -> Address { self.data_owner}
+	pub fn data_owner(&self) -> Address {
+		self.data_owner
+	}
 
-	pub fn raw_outputs(&self) -> &[u128] { &self.expect_result }
+	pub fn raw_outputs(&self) -> &[u128] {
+		&self.expect_result
+	}
 
 	// todo error handle?
 	// calc the output from `ProofEvent`,
@@ -110,7 +114,9 @@ impl ProofEvent {
 		self.root_hash
 	}
 
-	pub fn block_number(&self) -> Option<U64> { self.block_number }
+	pub fn block_number(&self) -> Option<U64> {
+		self.block_number
+	}
 
 	pub fn proof_cid(&self) -> &str {
 		self.proof_cid.as_str()
@@ -232,7 +238,7 @@ mod tests {
 		let mut test_event = vec![];
 
 		test_event.push(ProofEvent {
-			block_number:Some(33.into()),
+			block_number: Some(33.into()),
 			data_owner: Address::from_str("0x127221418abcd357022d29f62449d98d9610dfab")
 				.expect("wrong address"),
 			attester: [

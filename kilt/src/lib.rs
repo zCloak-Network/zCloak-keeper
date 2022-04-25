@@ -7,8 +7,8 @@ use keeper_primitives::{
 	},
 	Decode, Hash, Result, VerifyResult,
 };
-
 pub use task::task_attestation;
+
 mod task;
 
 pub async fn filter(client: &KiltClient, result: Vec<VerifyResult>) -> Result<Vec<VerifyResult>> {
@@ -36,8 +36,10 @@ pub async fn filter(client: &KiltClient, result: Vec<VerifyResult>) -> Result<Ve
 		} else {
 			log::warn!(
                 target: KILT_LOG_TARGET,
-                "attestaion is not valid for this root_hash|root_hash:{:}|data owner:{:}|number:{:?}",                 hex::encode(i.root_hash), hex::encode(i.data_owner.0),
-				i.number);
+                "attestaion is not valid for this root_hash|root_hash:{:}|data owner:{:}|number:{:?}",
+				hex::encode(i.root_hash), hex::encode(i.data_owner.0),
+				i.number
+			);
 			// TODO: notice the server that user's credential is not valid on kilt
 		}
 	}
@@ -95,9 +97,11 @@ pub async fn query_attestation(
 
 #[cfg(test)]
 mod tests {
-	use crate::{query_attestation, Hash};
-	use keeper_primitives::{kilt::Attestation, KiltClient};
 	use std::str::FromStr;
+
+	use keeper_primitives::{kilt::Attestation, KiltClient};
+
+	use crate::{query_attestation, Hash};
 
 	#[inline]
 	fn attest_exp() -> Attestation {

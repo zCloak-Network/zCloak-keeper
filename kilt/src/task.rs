@@ -1,6 +1,6 @@
 use keeper_primitives::{
-	monitor::MonitorSender, ConfigInstance, Delay, Error, MqReceiver,
-	MqSender, CHANNEL_LOG_TARGET, U64,
+	monitor::MonitorSender, ConfigInstance, Delay, Error, MqReceiver, MqSender, CHANNEL_LOG_TARGET,
+	U64,
 };
 use std::time::Duration;
 
@@ -24,9 +24,8 @@ pub async fn task_attestation(
 		if !res.is_empty() {
 			let message_to_send = serde_json::to_vec(&res);
 			msg_queue.0.send(message_to_send.unwrap()).await.map_err(|e| (None, e.into()))?;
-
-			r.commit().map_err(|e| (None, e.into()))?;
 		}
+		r.commit().map_err(|e| (None, e.into()))?;
 	}
 
 	Ok(())

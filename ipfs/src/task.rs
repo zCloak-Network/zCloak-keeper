@@ -1,7 +1,7 @@
 use crate::KeeperResult;
 use keeper_primitives::{
-	monitor::MonitorSender, ConfigInstance, Delay, Error, Events, JsonParse, MqReceiver,
-	MqSender, MESSAGE_PARSE_LOG_TARGET, U64,
+	monitor::MonitorSender, ConfigInstance, Delay, Error, Events, JsonParse, MqReceiver, MqSender,
+	MESSAGE_PARSE_LOG_TARGET, U64,
 };
 use std::time::Duration;
 
@@ -31,9 +31,7 @@ pub async fn task_verify(
 			},
 		};
 
-		let res = super::query_and_verify(&config.ipfs_client, inputs)
-			.await
-			.map_err(|e| (e.0, e.1))?;
+		let res = super::query_and_verify(&config.ipfs_client, inputs).await?;
 		// not empty
 		if res.is_some() {
 			// todo : ugly hacking
@@ -49,11 +47,10 @@ pub async fn task_verify(
 				},
 				Err(e) => {
 					log::error!("in task2 send to queue error:{:?}", e);
-					return Err((None, e.into()));
+					return Err((None, e.into()))
 				},
 			}
 		}
-
 	}
 
 	Ok(())

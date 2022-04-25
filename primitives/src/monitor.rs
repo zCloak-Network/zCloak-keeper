@@ -22,8 +22,7 @@ pub struct MonitorMetrics {
 	// align with log target
 	target: String,
 	block_number: Option<U64>,
-	// todo: structure this
-	error: super::Error,
+	error_msg: String,
 	keeper_address: Address,
 }
 
@@ -36,10 +35,11 @@ impl MonitorMetrics {
 	pub fn new(
 		target: String,
 		block_number: Option<U64>,
-		error: super::Error,
+		error: &super::Error,
 		keeper_address: Address,
 	) -> Self {
-		Self { target, block_number, error, keeper_address }
+		let error_msg = format!("{:?}", error);
+		Self { target, block_number, error_msg, keeper_address }
 	}
 
 	pub fn monitor_keywords(&self) -> KeywordReplace {
@@ -47,7 +47,7 @@ impl MonitorMetrics {
 		// todo: config key
 		map.insert("level".to_owned(), self.target.clone());
 		map.insert("BlockNumber".to_owned(), self.get_block());
-		map.insert("error".to_owned(), format!("{}", self.error).to_string());
+		map.insert("error".to_owned(), self.error_msg.clone());
 		map.insert("KeeperAddress".to_owned(), self.keeper_address.to_string());
 		map
 	}

@@ -5,9 +5,9 @@ use web3::signing::{Key, SecretKeyRef};
 
 use keeper_primitives::{
 	moonbeam::{
-		self, ProofEvent, Events, IS_FINISHED, MOONBEAM_LISTENED_EVENT, MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET,
-		MOONBEAM_SCAN_SPAN, MOONBEAM_TRANSACTION_CONFIRMATIONS, SUBMIT_STATUS_QUERY,
-		SUBMIT_VERIFICATION,
+		self, Events, ProofEvent, IS_FINISHED, MOONBEAM_LISTENED_EVENT, MOONBEAM_SCAN_LOG_TARGET,
+		MOONBEAM_SCAN_SPAN, MOONBEAM_SUBMIT_LOG_TARGET, MOONBEAM_TRANSACTION_CONFIRMATIONS,
+		SUBMIT_STATUS_QUERY, SUBMIT_VERIFICATION,
 	},
 	Address, Contract, Http, MoonbeamClient, Result as KeeperResult, VerifyResult, Web3Options,
 	U64,
@@ -127,11 +127,13 @@ pub async fn submit_txs(
 				Web3Options::default(),
 				None,
 			)
-			.await.map_err(|e| (v.number, e.into()))?;
+			.await
+			.map_err(|e| (v.number, e.into()))?;
 
 		let is_finished: bool = contract
 			.query(IS_FINISHED, (v.data_owner, v.request_hash), None, Web3Options::default(), None)
-			.await.map_err(|e| (v.number, e.into()))?;
+			.await
+			.map_err(|e| (v.number, e.into()))?;
 
 		log::info!(
 			target: MOONBEAM_SUBMIT_LOG_TARGET,
