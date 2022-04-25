@@ -34,7 +34,7 @@ pub async fn task_verify(
 		let res = super::query_and_verify(&config.ipfs_client, inputs)
 			.await
 			.map_err(|e| (e.0, e.1))?;
-
+		// not empty
 		if res.is_some() {
 			// todo : ugly hacking
 			let start = res.clone().unwrap().first().unwrap().number;

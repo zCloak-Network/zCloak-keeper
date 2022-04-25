@@ -17,19 +17,24 @@ pub async fn query_and_verify(
 				ipfs.fetch_proof(proof.proof_cid()).await.map_err(|e| (proof.block_number(), e.into()))?;
 			log::info!(
 				target: IPFS_LOG_TARGET,
-				"ipfs proof fetched and the content length is {}",
+				"ipfs proof of data owner {:} in block {:?} fetched and the content length is {}",
+				hex::encode(proof.data_owner()),
+				proof.block_number(),
 				cid_context.len()
 			);
 			// if verify meet error, do not throw it.
 			let result =
 				match verify(&proof, &cid_context) {
 					Ok(r) => {
+						log::info!(
+                            target: VERIFY_LOG_TARGET,
+                     		"[STARKVM] the proof in block {:?}| cid {:?} | is verified as {:}",
+                            &proof.block_number(),
+							proof.proof_cid(),
+							r
+						);
 						if !r {
 							// TODO set to database in future
-							log::info!(
-                            target: VERIFY_LOG_TARGET,
-                            "verify zkStark from cid context failed|event_blocknumber:{:?}|cid:{:}",
-                            &proof.block_number(), proof.proof_cid());
 						}
 						r
 					},

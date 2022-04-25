@@ -10,7 +10,9 @@ use secp256k1::SecretKey;
 use tokio::{io, sync::RwLock};
 use yaque::{channel, recovery};
 // #[cfg(feature = "monitor")]
-use keeper_primitives::{monitor, monitor::MonitorMetrics, moonbeam::MOONBEAM_LOG_TARGET};
+use keeper_primitives::{monitor, monitor::MonitorMetrics};
+use keeper_primitives::ipfs::IPFS_LOG_TARGET;
+use keeper_primitives::moonbeam::{MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET};
 
 use crate::command::StartOptions;
 
@@ -114,7 +116,7 @@ pub async fn run(
 		if let Err(e) = res {
 			if cfg!(feature = "monitor") {
 				let monitor_metrics = MonitorMetrics::new(
-					MOONBEAM_LOG_TARGET.to_string(),
+					MOONBEAM_SCAN_LOG_TARGET.to_string(),
 					e.0,
 					e.1.into(),
 					config.keeper_address,
@@ -132,13 +134,14 @@ pub async fn run(
 
 		if let Err(e) = res {
 			log::error!(
+				//todo: config
 				target: "IPFS_AND_VERIFY",
 				"encounter error: {:?}",
 				e
 			);
 			if cfg!(feature = "monitor") {
 				let monitor_metrics = MonitorMetrics::new(
-					MOONBEAM_LOG_TARGET.to_string(),
+					IPFS_LOG_TARGET.to_string(),
 					e.0,
 					e.1.into(),
 					config.keeper_address,
@@ -159,7 +162,7 @@ pub async fn run(
 
 			if cfg!(feature = "monitor") {
 				let monitor_metrics = MonitorMetrics::new(
-					MOONBEAM_LOG_TARGET.to_string(),
+					KILT_LOG_TARGET.to_string(),
 					e.0,
 					e.1.into(),
 					config.keeper_address,
@@ -178,7 +181,7 @@ pub async fn run(
 		if cfg!(feature = "monitor") {
 			if let Err(e) = res {
 				let monitor_metrics = MonitorMetrics::new(
-					MOONBEAM_LOG_TARGET.to_string(),
+					MOONBEAM_SUBMIT_LOG_TARGET.to_string(),
 					e.0,
 					e.1,
 					config.keeper_address,

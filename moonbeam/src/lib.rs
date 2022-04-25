@@ -5,7 +5,7 @@ use web3::signing::{Key, SecretKeyRef};
 
 use keeper_primitives::{
 	moonbeam::{
-		self, ProofEvent, Events, IS_FINISHED, MOONBEAM_LISTENED_EVENT, MOONBEAM_LOG_TARGET,
+		self, ProofEvent, Events, IS_FINISHED, MOONBEAM_LISTENED_EVENT, MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET,
 		MOONBEAM_SCAN_SPAN, MOONBEAM_TRANSACTION_CONFIRMATIONS, SUBMIT_STATUS_QUERY,
 		SUBMIT_VERIFICATION,
 	},
@@ -26,7 +26,7 @@ pub async fn scan_events(
 	// if start > best, reset `start` pointer to best
 	if start > best {
 		log::warn!(
-			target: MOONBEAM_LOG_TARGET,
+			target: MOONBEAM_SCAN_LOG_TARGET,
 			"scan moonbeam start block is higher than current best! start_block={}, best_block:{}",
 			start,
 			best
@@ -37,7 +37,7 @@ pub async fn scan_events(
 	let end = if start + span > best { best } else { start + span };
 
 	log::info!(
-		target: MOONBEAM_LOG_TARGET,
+		target: MOONBEAM_SCAN_LOG_TARGET,
 		"try to scan moonbeam log from block [{:}] - [{:}] | best:{:}",
 		start,
 		end,
@@ -58,7 +58,7 @@ pub async fn scan_events(
 		Ok(events) => events,
 		Err(err) => {
 			log::error!(
-				target: MOONBEAM_LOG_TARGET,
+				target: MOONBEAM_SCAN_LOG_TARGET,
 				"Moonbeam Scan Err: Event parse error. {:?}",
 				err
 			);
@@ -75,24 +75,10 @@ pub async fn scan_events(
 			// warn
 			if number.is_none() {
 				log::warn!(
-					target: MOONBEAM_LOG_TARGET,
-					"Moonbeam log blocknumber should not be None"
+					target: MOONBEAM_SCAN_LOG_TARGET,
+					"Moonbeam log block number should not be None"
 				);
 			}
-			// complete proof event
-			proof_event.set_block_number(number);
-
-			result.push(proof_event.clone());
-			log::info!(
-				target: MOONBEAM_LOG_TARGET,
-				"event in block {:?} contains data owner: {:} | request hash: {:} | root hash: {:} | program hash is {:} | calc output {:?} have been recorded",
-				number,
-				hex::encode(proof_event.data_owner()),
-				hex::encode(proof_event.request_hash()),
-				hex::encode(proof_event.root_hash()),
-				hex::encode(proof_event.program_hash()),
-				proof_event.raw_outputs()
-			);
 
 			log::info!(
 				"scan from [{:}] - [{:}] | hit:[{:}] | in blocks: {:?}",
@@ -100,6 +86,21 @@ pub async fn scan_events(
 				end,
 				hit,
 				number
+			);
+
+			// complete proof event
+			proof_event.set_block_number(number);
+
+			result.push(proof_event.clone());
+			log::info!(
+				target: MOONBEAM_SCAN_LOG_TARGET,
+				"event in block {:?} contains data owner: {:} | request hash: {:} | root hash: {:} | program hash is {:} | calc output {:?} have been recorded",
+				number,
+				hex::encode(proof_event.data_owner()),
+				hex::encode(proof_event.request_hash()),
+				hex::encode(proof_event.root_hash()),
+				hex::encode(proof_event.program_hash()),
+				proof_event.raw_outputs()
 			);
 		}
 
@@ -116,7 +117,7 @@ pub async fn submit_txs(
 	res: Vec<VerifyResult>,
 ) -> std::result::Result<(), (Option<U64>, keeper_primitives::moonbeam::Error)> {
 	for v in res {
-		log::info!(target: MOONBEAM_LOG_TARGET, "IsPassed before submit is {}", v.is_passed);
+		log::info!(target: MOONBEAM_SUBMIT_LOG_TARGET, "IsPassed before submit is {}", v.is_passed);
 		// TODO: read multiple times?
 		let has_submitted: bool = contract
 			.query(
@@ -133,9 +134,11 @@ pub async fn submit_txs(
 			.await.map_err(|e| (v.number, e.into()))?;
 
 		log::info!(
-			target: MOONBEAM_LOG_TARGET,
-			"hasSubmitted result for request hash [{:?}] is {}, isFinished result is {:}",
+			target: MOONBEAM_SUBMIT_LOG_TARGET,
+			"record: block number: {:?} | request_hash: {:}| root hash : {:}| hasSubmitted is {}, isFinished result is {:}",
+			v.number,
 			hex::encode(v.request_hash),
+			hex::encode(v.root_hash),
 			has_submitted,
 			is_finished
 		);
@@ -167,7 +170,7 @@ pub async fn submit_txs(
 			match r {
 				Ok(r) => {
 					log::info!(
-						target: MOONBEAM_LOG_TARGET,
+						target: MOONBEAM_SUBMIT_LOG_TARGET,
 						"Successfully submit verification|tx:{:}|data owner:{:}|root_hash:{:}|is_passed: {:}|attester: {:}",
 						r.transaction_hash,
 						v.data_owner,
@@ -178,7 +181,7 @@ pub async fn submit_txs(
 				},
 				Err(e) => {
 					log::error!(
-						target: MOONBEAM_LOG_TARGET,
+						target: MOONBEAM_SUBMIT_LOG_TARGET,
 						"Error submit verification |data owner:{:}|root_hash:{:}|request_hash: {:}, err: {:?}",
 						v.data_owner,
 						hex::encode(v.root_hash),

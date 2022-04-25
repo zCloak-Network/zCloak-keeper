@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use keeper_primitives::{
 	monitor::{MonitorMetrics, MonitorSender},
-	moonbeam::MOONBEAM_LOG_TARGET,
+	moonbeam::{MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET},
 	ConfigInstance, Delay, Error, JsonParse, MqReceiver, MqSender, CHANNEL_LOG_TARGET,
 };
 
@@ -24,7 +24,7 @@ pub async fn task_scan(
 			Ok(b) => b,
 			Err(e) => {
 				log::error!(
-						target: MOONBEAM_LOG_TARGET,
+						target: MOONBEAM_SCAN_LOG_TARGET,
 						"Fail to get latest block number in tasks moonbeam scan, after #{:?} scanned, err is {:?}",
 						start,
 						 e
@@ -108,7 +108,7 @@ pub async fn task_submit(
 			Err(e)  => {
 				if cfg!(feature = "monitor") {
 					let monitor_metrics = MonitorMetrics::new(
-						MOONBEAM_LOG_TARGET.to_string(),
+						MOONBEAM_SUBMIT_LOG_TARGET.to_string(),
 						e.0,
 						e.1.into(),
 						config.keeper_address,
