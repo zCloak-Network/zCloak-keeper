@@ -4,13 +4,17 @@ use keeper_primitives::{
 	moonbeam::{MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET},
 	ConfigInstance, Delay, Error, JsonParse, MqReceiver, MqSender, CHANNEL_LOG_TARGET,
 };
-use tokio::time::{sleep, Duration};
+use std::sync::Arc;
+use tokio::{
+	sync::RwLock,
+	time::{sleep, Duration},
+};
 
 use super::KeeperResult;
 
 pub async fn task_scan(
-	config: &ConfigInstance,
-	msg_sender: &mut MqSender,
+	config: Arc<ConfigInstance>,
+	msg_sender: Arc<RwLock<MqSender>>,
 	mut start: U64,
 	_monitor_sender: MonitorSender,
 ) -> KeeperResult<()> {
@@ -49,7 +53,10 @@ pub async fn task_scan(
 			// unwrap MUST succeed
 			let output = res.unwrap().into_bytes().map_err(|e| (Some(start), e.into()))?;
 
-			let status = msg_sender.send(output).await;
+			let status = {
+				let mut sender = msg_sender.write().await;
+				sender.send(output).await
+			};
 			if let Err(e) = status {
 				log::error!(
 					target: CHANNEL_LOG_TARGET,
