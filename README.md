@@ -108,3 +108,14 @@ OPTIONS:
 - `--config` the path of zCloak keeper's config file
 - `--cache-dir` the directory path which zCloak keeper cache the message queue files
 - `-s` or `--start-number` where to start the moonbeam series networks scan
+
+## Let's Hack
+1. Env set
+```bash
+cargo install taplo-cli
+```
+
+2. build
+```bash
+make build
+```

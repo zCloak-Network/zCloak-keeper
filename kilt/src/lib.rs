@@ -60,7 +60,7 @@ pub async fn query_attestation(
 			Ok(details) => break details,
 			Err(e) => {
 				match e {
-					RpcError::RequestTimeout | RpcError::Transport(_) =>
+					RpcError::RequestTimeout | RpcError::Transport(_) => {
 						if times < KILT_MAX_RETRY_TIMES {
 							times += 1;
 							log::warn!(
@@ -70,7 +70,8 @@ pub async fn query_attestation(
 								KILT_MAX_RETRY_TIMES
 							);
 							continue
-						},
+						}
+					},
 
 					_ => {},
 				}
