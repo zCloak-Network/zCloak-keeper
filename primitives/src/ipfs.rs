@@ -23,6 +23,7 @@ pub struct IpfsConfig {
 pub struct IpfsClient {
 	// e.g.  https://ipfs.infura.io:5001/api/v0/cat
 	pub cat_url_prefix: String,
+	pub ip_address: String,
 }
 
 impl IpfsClient {
@@ -34,7 +35,10 @@ impl IpfsClient {
 			} else {
 				config_base_url.to_owned()
 			};
-			return Ok(IpfsClient { cat_url_prefix: cat_url + IPFS_CAT_PATH })
+			return Ok(IpfsClient {
+				cat_url_prefix: cat_url + IPFS_CAT_PATH,
+				ip_address: String::from(config_base_url),
+			})
 		} else {
 			return Err(Error::InvalidIpfsHost)
 		}

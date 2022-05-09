@@ -110,6 +110,7 @@ pub async fn task_submit(
 						e.0,
 						&e.1.into(),
 						config.keeper_address,
+						&config.moonbeam_client.ip_address,
 					);
 					monitor_sender.send(monitor_metrics).await;
 				},
