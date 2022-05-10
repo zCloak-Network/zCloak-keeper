@@ -2,9 +2,10 @@ use secp256k1::SecretKey;
 
 use keeper_primitives::{
 	moonbeam::{
-		self, Events, ProofEvent, IS_FINISHED, MOONBEAM_LISTENED_EVENT, MOONBEAM_SCAN_LOG_TARGET,
-		MOONBEAM_SCAN_SPAN, MOONBEAM_SUBMIT_LOG_TARGET, MOONBEAM_TRANSACTION_CONFIRMATIONS,
-		SUBMIT_STATUS_QUERY, SUBMIT_VERIFICATION,
+		self, utils::query_submit_and_finish_result, Events, ProofEvent, IS_FINISHED,
+		MOONBEAM_LISTENED_EVENT, MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SCAN_SPAN,
+		MOONBEAM_SUBMIT_LOG_TARGET, MOONBEAM_TRANSACTION_CONFIRMATIONS, SUBMIT_STATUS_QUERY,
+		SUBMIT_TX_MAX_RETRY_TIMES, SUBMIT_VERIFICATION,
 	},
 	Address, Contract, Http, MoonbeamClient, Result as KeeperResult, VerifyResult, Web3Options,
 	U64,
@@ -115,60 +116,53 @@ pub async fn submit_txs(
 ) -> std::result::Result<(), (Option<U64>, keeper_primitives::moonbeam::Error)> {
 	for v in res {
 		log::info!(target: MOONBEAM_SUBMIT_LOG_TARGET, "IsPassed before submit is {}", v.is_passed);
-		// TODO: read multiple times?
-		let has_submitted: bool = contract
-			.query(
-				SUBMIT_STATUS_QUERY,
-				(keeper_address, v.data_owner, v.request_hash),
-				None,
-				Web3Options::default(),
-				None,
-			)
-			.await
-			.map_err(|e| (v.number, e.into()))?;
 
-		let is_finished: bool = contract
-			.query(IS_FINISHED, (v.data_owner, v.request_hash), None, Web3Options::default(), None)
-			.await
-			.map_err(|e| (v.number, e.into()))?;
+		let query_submit_and_finish_results = query_submit_and_finish_result(
+			contract,
+			SUBMIT_STATUS_QUERY,
+			(keeper_address, v.data_owner, v.request_hash),
+			IS_FINISHED,
+			(v.data_owner, v.request_hash),
+			v.request_hash,
+			SUBMIT_TX_MAX_RETRY_TIMES,
+		)
+		.await;
 
-		log::info!(
-			target: MOONBEAM_SUBMIT_LOG_TARGET,
-			"record: block number: {:?} | request_hash: {:}| root hash : {:}| hasSubmitted is {}, isFinished result is {:}",
-			v.number,
-			hex::encode(v.request_hash),
-			hex::encode(v.root_hash),
-			has_submitted,
-			is_finished
-		);
+		match query_submit_and_finish_results {
+			Ok((has_submitted, is_finished)) => {
+				log::info!(
+					target: MOONBEAM_SUBMIT_LOG_TARGET,
+					"hasSubmitted result for request hash [{:?}] is {:?}, isFinished result is {:?}",
+					hex::encode(v.request_hash),
+					has_submitted,
+					is_finished,
+				);
+				let r = contract
+					.signed_call_with_confirmations(
+						SUBMIT_VERIFICATION,
+						(
+							v.data_owner,
+							v.request_hash,
+							v.c_type,
+							v.root_hash,
+							v.is_passed,
+							v.attester,
+							v.calc_output,
+						),
+						{
+							// todo: auto adjust options here
+							let mut options = Web3Options::default();
+							options.gas = Some(1000000.into());
+							options
+						},
+						MOONBEAM_TRANSACTION_CONFIRMATIONS,
+						&keeper_pri,
+					)
+					.await;
 
-		if !has_submitted && !is_finished {
-			let r = contract
-				.signed_call_with_confirmations(
-					SUBMIT_VERIFICATION,
-					(
-						v.data_owner,
-						v.request_hash,
-						v.c_type,
-						v.root_hash,
-						v.is_passed,
-						v.attester,
-						v.calc_output,
-					),
-					{
-						// todo: auto adjust options here
-						let mut options = Web3Options::default();
-						options.gas = Some(1000000.into());
-						options
-					},
-					MOONBEAM_TRANSACTION_CONFIRMATIONS,
-					&keeper_pri,
-				)
-				.await;
-
-			match r {
-				Ok(r) => {
-					log::info!(
+				match r {
+					Ok(r) => {
+						log::info!(
 						target: MOONBEAM_SUBMIT_LOG_TARGET,
 						"Successfully submit verification|tx:{:}|data owner:{:}|root_hash:{:}|is_passed: {:}|attester: {:}",
 						r.transaction_hash,
@@ -177,9 +171,9 @@ pub async fn submit_txs(
 						v.is_passed,
 						hex::encode(v.attester),
 					)
-				},
-				Err(e) => {
-					log::error!(
+					},
+					Err(e) => {
+						log::error!(
 						target: MOONBEAM_SUBMIT_LOG_TARGET,
 						"Error submit verification |data owner:{:}|root_hash:{:}|request_hash: {:}, err: {:?}",
 						v.data_owner,
@@ -187,9 +181,11 @@ pub async fn submit_txs(
 						hex::encode(v.request_hash),
 						e
 					);
-					return Err((v.number, e.into()))
-				},
-			}
+						return Err((v.number, e.into()))
+					},
+				}
+			},
+			Err(e) => return Err((v.number, e.into())),
 		}
 	}
 

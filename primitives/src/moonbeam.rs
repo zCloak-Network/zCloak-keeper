@@ -12,13 +12,14 @@ use web3::{
 
 pub use super::*;
 use super::{Deserialize, Serialize};
-
+pub const SUBMIT_TX_MAX_RETRY_TIMES: usize = 3;
 pub const MOONBEAM_SCAN_SPAN: usize = 10;
 // TODO: move it to config file
 pub const MOONBEAM_LISTENED_EVENT: &'static str = "AddProof";
 pub const MOONBEAM_BLOCK_DURATION: u64 = 12;
 pub const MOONBEAM_TRANSACTION_CONFIRMATIONS: usize = 2;
 pub const MOONBEAM_SCAN_LOG_TARGET: &str = "MoonbeamScan";
+pub const MOONBEAM_QUERY_LOG_TARGET: &str = "MoonbeamQuery";
 pub const MOONBEAM_SUBMIT_LOG_TARGET: &str = "MoonbeamSubmit";
 // contract function which keeper use to submit verification result
 pub const SUBMIT_VERIFICATION: &str = "submit";
@@ -96,6 +97,72 @@ impl MoonbeamClient {
 
 pub mod utils {
 	use super::*;
+
+	pub async fn query_submit_and_finish_result<
+		T: Transport,
+		P1: Tokenize + std::marker::Copy,
+		P2: Tokenize + std::marker::Copy,
+	>(
+		contract: &Contract<T>,
+		func_1: &str,
+		params_1: P1,
+		func_2: &str,
+		params_2: P2,
+		request_hash: Bytes32,
+		query_times: usize,
+	) -> Result<(bool, bool)> {
+		let query_submit_result =
+			query_single_result_multi_times(contract, func_1, params_1, request_hash, query_times)
+				.await;
+		let query_finish_result =
+			query_single_result_multi_times(contract, func_2, params_2, request_hash, query_times)
+				.await;
+		match query_submit_result.is_ok() && query_finish_result.is_ok() {
+			true => return Ok((query_submit_result.unwrap(), query_finish_result.unwrap())),
+			false => {
+				// if there are two errors, return the first one
+				// the log::warn is reported in the `query_single_result` before, don't have to log
+				// again
+				return if query_submit_result.is_err() {
+					Err(query_submit_result.unwrap_err())
+				} else {
+					Err(query_finish_result.unwrap_err())
+				}
+			},
+		};
+	}
+
+	pub async fn query_single_result_multi_times<T: Transport, P: Tokenize + std::marker::Copy>(
+		contract: &Contract<T>,
+		func: &str,
+		params: P,
+		request_hash: Bytes32,
+		query_times: usize,
+	) -> Result<bool> {
+		let mut query_error_messages: Vec<moonbeam::Error> = Vec::new();
+		for _ in 0..query_times {
+			let maybe_query_result =
+				contract.query(func, params, None, Web3Options::default(), None).await;
+			match maybe_query_result {
+				Ok(query_result) => return Ok(query_result),
+				Err(query_error_message) => {
+					// record each error, log them all
+					query_error_messages.push(query_error_message.into());
+					continue
+				},
+			};
+		}
+		log::warn!(
+			target: MOONBEAM_QUERY_LOG_TARGET,
+			"The {:?} query for request hash[{:?}] meets {:?} errors: [{:?}]",
+			func,
+			hex::encode(request_hash),
+			query_times,
+			query_error_messages
+		);
+		// return the first error, but log all errors.
+		return Err(query_error_messages.pop().unwrap())
+	}
 
 	// todo: test if if can filter event due to contract address
 	pub async fn events<T: Transport, R: Detokenize>(

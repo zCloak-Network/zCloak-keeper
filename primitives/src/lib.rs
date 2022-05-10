@@ -1,3 +1,5 @@
+#![feature(unwrap_infallible)]
+
 pub use codec::{Decode, Encode};
 pub use futures_timer::Delay;
 pub use serde::{Deserialize, Serialize};
