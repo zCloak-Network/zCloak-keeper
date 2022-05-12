@@ -16,7 +16,7 @@ use keeper_primitives::{
 
 use crate::command::StartOptions;
 
-const SLEEP_SECS: u64 = 5;
+const SLEEP_SECS: u64 = 1;
 
 // TODO move
 async fn sleep() {

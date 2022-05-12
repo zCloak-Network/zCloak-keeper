@@ -114,7 +114,6 @@ pub async fn submit_txs(
 	res: Vec<VerifyResult>,
 ) -> std::result::Result<(), (Option<U64>, keeper_primitives::moonbeam::Error)> {
 	for v in res {
-		log::info!(target: MOONBEAM_SUBMIT_LOG_TARGET, "IsPassed before submit is {}", v.is_passed);
 		// TODO: read multiple times?
 		let has_submitted: bool = contract
 			.query(
@@ -143,6 +142,14 @@ pub async fn submit_txs(
 		);
 
 		if !has_submitted && !is_finished {
+			log::info!(
+			target: MOONBEAM_SUBMIT_LOG_TARGET,
+			"Start submitting: tx which contains user address: {:} |request_hash: {:}| root hash : {:} | isPassed: {}",
+			v.data_owner,
+			hex::encode(v.request_hash),
+			hex::encode(v.root_hash),
+			v.is_passed
+		);
 			let r = contract
 				.signed_call_with_confirmations(
 					SUBMIT_VERIFICATION,

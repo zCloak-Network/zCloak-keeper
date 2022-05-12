@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use keeper_primitives::{
-	ConfigInstance, Delay, Error, Events, JsonParse, MqReceiver, MqSender,
+	ConfigInstance, Delay, Error, Events, JsonParse, MqReceiver, MqSender, CHANNEL_LOG_TARGET,
 	MESSAGE_PARSE_LOG_TARGET, U64,
 };
 
@@ -15,6 +15,8 @@ pub async fn task_verify(
 			Some(a) => a,
 			None => continue,
 		};
+
+		log::info!(target: CHANNEL_LOG_TARGET, "recv msg in task2");
 
 		// parse event from str to ProofEvent
 		let inputs = Events::try_from_bytes(&*events);

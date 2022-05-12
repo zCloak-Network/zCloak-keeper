@@ -2,8 +2,8 @@
 **/target
 .vscode
 .idea
-**/config*
 **/config-local*
+**/config-production*
 **/bot-url
 data*
 **/cache*
