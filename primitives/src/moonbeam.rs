@@ -111,58 +111,69 @@ pub mod utils {
 		request_hash: Bytes32,
 		query_times: usize,
 	) -> Result<(bool, bool)> {
-		let query_submit_result =
-			query_single_result_multi_times(contract, func_1, params_1, request_hash, query_times)
-				.await;
-		let query_finish_result =
-			query_single_result_multi_times(contract, func_2, params_2, request_hash, query_times)
-				.await;
-		match query_submit_result.is_ok() && query_finish_result.is_ok() {
-			true => return Ok((query_submit_result.unwrap(), query_finish_result.unwrap())),
-			false => {
-				// if there are two errors, return the first one
-				// the log::warn is reported in the `query_single_result` before, don't have to log
-				// again
-				return if query_submit_result.is_err() {
-					Err(query_submit_result.unwrap_err())
-				} else {
-					Err(query_finish_result.unwrap_err())
+		let mut maybe_fun_1_query_result =
+			contract.query(func_1, params_1, None, Web3Options::default(), None).await;
+		let mut maybe_fun_2_query_result =
+			contract.query(func_2, params_2, None, Web3Options::default(), None).await;
+		match (maybe_fun_1_query_result, maybe_fun_2_query_result) {
+			(Ok(query_fuc_1_result), Ok(query_fun_2_result)) =>
+				return Ok((query_fuc_1_result, query_fun_2_result)),
+			_ => {
+				let mut maybe_fun_1_retry_result =
+					contract.query(func_1, params_1, None, Web3Options::default(), None).await;
+				let mut maybe_fun_2_retry_result =
+					contract.query(func_2, params_2, None, Web3Options::default(), None).await;
+				for i in 0..query_times {
+					if maybe_fun_1_retry_result.is_ok() && maybe_fun_2_retry_result.is_ok() {
+						return Ok((maybe_fun_1_retry_result.unwrap(), maybe_fun_2_retry_result.unwrap()))
+					} else {
+						maybe_fun_1_retry_result =
+							contract.query(func_1, params_1, None, Web3Options::default(), None).await;
+						maybe_fun_2_retry_result =
+							contract.query(func_2, params_2, None, Web3Options::default(), None).await;
+					}
 				}
-			},
-		};
+				match (maybe_fun_1_retry_result, maybe_fun_2_retry_result) {
+					(Ok(maybe_fun_1_retry_result), Err(maybe_fun_2_retry_result)) => {
+						log::warn!(
+						target: MOONBEAM_QUERY_LOG_TARGET,
+						"The {:?} query for request hash[{:?}] meets error: [{:?}]",
+						func_2,
+						hex::encode(request_hash),
+						maybe_fun_2_retry_result
+					);
+						return Err(maybe_fun_2_retry_result.into())
+					},
+					(Err(maybe_fun_1_retry_result), Ok(maybe_fun_2_retry_result)) => {
+						log::warn!(
+						target: MOONBEAM_QUERY_LOG_TARGET,
+						"The {:?} query for request hash[{:?}] meets error: [{:?}]",
+						func_1,
+						hex::encode(request_hash),
+						maybe_fun_1_retry_result
+					);
+						return Err(maybe_fun_1_retry_result.into())
+					},
+					(Err(maybe_fun_1_retry_result), Err(maybe_fun_2_retry_result)) => {
+						log::warn!(
+						target: MOONBEAM_QUERY_LOG_TARGET,
+						"The {:?} and {:?} query for request hash[{:?}] meets error: [{:?} and {:?}]",
+						func_1,
+						func_2,
+						hex::encode(request_hash),
+						maybe_fun_1_retry_result,
+						maybe_fun_2_retry_result
+					);
+						return Err(maybe_fun_1_retry_result.into())
+					},
+					(Ok(maybe_fun_1_retry_result), Ok(maybe_fun_2_retry_result)) => {
+						return Ok((maybe_fun_1_retry_result, maybe_fun_2_retry_result))
+					}
+				}
+			}
+		}
 	}
 
-	pub async fn query_single_result_multi_times<T: Transport, P: Tokenize + std::marker::Copy>(
-		contract: &Contract<T>,
-		func: &str,
-		params: P,
-		request_hash: Bytes32,
-		query_times: usize,
-	) -> Result<bool> {
-		let mut query_error_messages: Vec<moonbeam::Error> = Vec::new();
-		for _ in 0..query_times {
-			let maybe_query_result =
-				contract.query(func, params, None, Web3Options::default(), None).await;
-			match maybe_query_result {
-				Ok(query_result) => return Ok(query_result),
-				Err(query_error_message) => {
-					// record each error, log them all
-					query_error_messages.push(query_error_message.into());
-					continue
-				},
-			};
-		}
-		log::warn!(
-			target: MOONBEAM_QUERY_LOG_TARGET,
-			"The {:?} query for request hash[{:?}] meets {:?} errors: [{:?}]",
-			func,
-			hex::encode(request_hash),
-			query_times,
-			query_error_messages
-		);
-		// return the first error, but log all errors.
-		return Err(query_error_messages.pop().unwrap())
-	}
 
 	// todo: test if if can filter event due to contract address
 	pub async fn events<T: Transport, R: Detokenize>(
