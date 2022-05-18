@@ -38,13 +38,15 @@ pub struct MoonbeamConfig {
 #[derive(Clone, Debug)]
 pub struct MoonbeamClient {
 	inner: Web3<Http>,
+	pub ip_address: String,
+
 }
 
 impl MoonbeamClient {
 	pub fn new(url: String) -> Result<Self> {
 		if url.starts_with("http") {
 			let web3 = Web3::new(Http::new(&url)?);
-			Ok(MoonbeamClient { inner: web3 })
+			Ok(MoonbeamClient { inner: web3, ip_address: url })
 		} else {
 			Err(Error::ClientCreationError("Wrong Moonbeam connection url".to_owned()))
 		}

@@ -41,13 +41,15 @@ pub struct KiltConfig {
 #[derive(Clone, Debug)]
 pub struct KiltClient {
 	client: HttpClient,
+	pub ip_address: String,
+
 }
 
 impl KiltClient {
 	pub async fn try_from_url(url: &str) -> Result<Self> {
 		if url.starts_with("http://") || url.starts_with("https://") {
 			let client = HttpClientBuilder::default().build(&url)?;
-			Ok(KiltClient { client })
+			Ok(KiltClient { client, ip_address: url.to_string() })
 		} else {
 			Err(Error::UrlFormatError(
 				"Kilt client connection must start with http or https".to_owned(),

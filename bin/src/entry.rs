@@ -135,6 +135,8 @@ pub async fn run(
 						e.0,
 						&e.1,
 						config.keeper_address,
+						&config.moonbeam_client.ip_address,
+
 					);
 					monitor_sender1.send(monitor_metrics).await;
 				}
@@ -175,6 +177,8 @@ pub async fn run(
 						e.0,
 						&e.1,
 						config.keeper_address,
+						&config.ipfs_client.ip_address,
+
 					);
 					monitor_sender2.send(monitor_metrics).await;
 				}
@@ -207,6 +211,8 @@ pub async fn run(
 						e.0,
 						&e.1,
 						config.keeper_address,
+						&config.kilt_client.ip_address,
+
 					);
 					monitor_sender3.send(monitor_metrics).await;
 				}
@@ -237,6 +243,8 @@ pub async fn run(
 						e.0,
 						&e.1,
 						config.keeper_address,
+						&config.moonbeam_client.ip_address,
+
 					);
 					monitor_sender4.send(monitor_metrics).await;
 				}
