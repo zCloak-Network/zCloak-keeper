@@ -26,7 +26,6 @@ pub struct MonitorMetrics {
 	error_msg: String,
 	keeper_address: Address,
 	client_address: String,
-
 }
 
 pub type MonitorSender = Sender<MonitorMetrics>;
@@ -41,10 +40,14 @@ impl MonitorMetrics {
 		error: &super::Error,
 		keeper_address: Address,
 		client_address: &String,
-
 	) -> Self {
 		let error_msg = format!("{:?}", error);
-		Self { target, block_number, error_msg, keeper_address, client_address: String::from(client_address),
+		Self {
+			target,
+			block_number,
+			error_msg,
+			keeper_address,
+			client_address: String::from(client_address),
 		}
 	}
 

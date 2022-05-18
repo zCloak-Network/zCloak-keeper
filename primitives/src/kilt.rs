@@ -42,7 +42,6 @@ pub struct KiltConfig {
 pub struct KiltClient {
 	client: HttpClient,
 	pub ip_address: String,
-
 }
 
 impl KiltClient {
