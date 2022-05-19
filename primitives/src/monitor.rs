@@ -25,6 +25,7 @@ pub struct MonitorMetrics {
 	block_number: Option<U64>,
 	error_msg: String,
 	keeper_address: Address,
+	client_address: String,
 }
 
 pub type MonitorSender = Sender<MonitorMetrics>;
@@ -38,9 +39,16 @@ impl MonitorMetrics {
 		block_number: Option<U64>,
 		error: &super::Error,
 		keeper_address: Address,
+		client_address: &String,
 	) -> Self {
 		let error_msg = format!("{:?}", error);
-		Self { target, block_number, error_msg, keeper_address }
+		Self {
+			target,
+			block_number,
+			error_msg,
+			keeper_address,
+			client_address: String::from(client_address),
+		}
 	}
 
 	pub fn monitor_keywords(&self) -> KeywordReplace {
@@ -50,6 +58,8 @@ impl MonitorMetrics {
 		map.insert("BlockNumber".to_owned(), self.get_block());
 		map.insert("error".to_owned(), self.error_msg.clone());
 		map.insert("KeeperAddress".to_owned(), self.keeper_address.to_string());
+		map.insert("ClientAddress".to_owned(), self.client_address.clone());
+
 		map
 	}
 
