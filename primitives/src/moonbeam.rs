@@ -268,6 +268,10 @@ pub enum Error {
 
 	#[error("Invalid Ethereum Address: {0}")]
 	InvalidEthereumAddress(String),
+
+	// todo: make it generic
+	#[error("Timeout error, err: {0}")]
+	TimeOutError(#[from] tokio::time::error::Elapsed),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

@@ -29,4 +29,8 @@ pub enum Error {
 
 	#[error("Task error, err: {0}")]
 	TaskJoinError(#[from] tokio::task::JoinError),
+
+	// todo: unify all timeout error
+	#[error("Timeout error, err: {0}")]
+	TimeOutError(#[from] tokio::time::error::Elapsed),
 }

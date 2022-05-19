@@ -143,7 +143,8 @@ pub async fn run(
 				match e.1 {
 					// connection error, do nothing, just re scan
 					Error::MoonbeamError(MoonbeamError::Web3Error(_)) |
-					Error::MoonbeamError(MoonbeamError::Web3ContractError(_)) => {
+					Error::MoonbeamError(MoonbeamError::Web3ContractError(_)) |
+					Error::TimeOutError(_) => {
 						// todo: make this more tolerant, e.g. retry N times first before throw and
 						// quit
 						sleep().await;
@@ -247,7 +248,8 @@ pub async fn run(
 
 				match e.1 {
 					Error::MoonbeamError(MoonbeamError::Web3Error(_)) |
-					Error::MoonbeamError(MoonbeamError::Web3ContractError(_)) => {
+					Error::MoonbeamError(MoonbeamError::Web3ContractError(_)) |
+					Error::TimeOutError(_) => {
 						// todo need retry
 						sleep().await;
 						continue

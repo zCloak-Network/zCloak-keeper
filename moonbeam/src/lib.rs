@@ -1,5 +1,3 @@
-use secp256k1::SecretKey;
-
 use keeper_primitives::{
 	moonbeam::{
 		self, utils::query_submit_and_finish_result, Events, ProofEvent, IS_FINISHED,
@@ -8,10 +6,11 @@ use keeper_primitives::{
 		SUBMIT_TX_MAX_RETRY_TIMES, SUBMIT_VERIFICATION,
 	},
 	Address, Contract, Http, MoonbeamClient, Result as KeeperResult, VerifyResult, Web3Options,
-	U64,
+	TIMEOUT_DURATION, U64,
 };
+use secp256k1::SecretKey;
 pub use task::{task_scan, task_submit};
-
+use tokio::time::{timeout_at, Instant};
 mod task;
 
 // scan moonbeam events
@@ -42,14 +41,18 @@ pub async fn scan_events(
 		best
 	);
 	// parse event
-	let r = moonbeam::utils::events::<_, ProofEvent>(
-		client.eth(),
-		proof_contract,
-		MOONBEAM_LISTENED_EVENT,
-		Some(start),
-		Some(end),
+	let r = timeout_at(
+		Instant::now() + TIMEOUT_DURATION,
+		moonbeam::utils::events::<_, ProofEvent>(
+			client.eth(),
+			proof_contract,
+			MOONBEAM_LISTENED_EVENT,
+			Some(start),
+			Some(end),
+		),
 	)
-	.await;
+	.await
+	.map_err(|e| (Some(start), e.into()))?;
 
 	// if event parse error, return Err(start) and output error log
 	let res = match r {
@@ -146,8 +149,9 @@ pub async fn submit_txs(
 						v.is_passed
 					);
 
-					let r = contract
-						.signed_call_with_confirmations(
+					let r = timeout_at(
+						Instant::now() + TIMEOUT_DURATION,
+						contract.signed_call_with_confirmations(
 							SUBMIT_VERIFICATION,
 							(
 								v.data_owner,
@@ -166,8 +170,10 @@ pub async fn submit_txs(
 							},
 							MOONBEAM_TRANSACTION_CONFIRMATIONS,
 							&keeper_pri,
-						)
-						.await;
+						),
+					)
+					.await
+					.map_err(|e| (v.number, e.into()))?;
 
 					match r {
 						Ok(r) => {

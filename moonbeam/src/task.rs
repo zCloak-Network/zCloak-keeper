@@ -3,8 +3,9 @@ use keeper_primitives::{
 	monitor::{MonitorMetrics, MonitorSender},
 	moonbeam::{MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET},
 	ConfigInstance, Delay, Error, JsonParse, MqReceiver, MqSender, CHANNEL_LOG_TARGET,
+	TIMEOUT_DURATION,
 };
-use tokio::time::{sleep, Duration};
+use tokio::time::{sleep, timeout_at, Duration, Instant};
 
 use super::KeeperResult;
 
@@ -17,7 +18,10 @@ pub async fn task_scan(
 	let mut tmp_start_cache = 0.into();
 
 	loop {
-		let maybe_best = config.moonbeam_client.best_number().await;
+		let maybe_best =
+			timeout_at(Instant::now() + TIMEOUT_DURATION, config.moonbeam_client.best_number())
+				.await
+				.map_err(|e| (None, e.into()))?;
 		let best = match maybe_best {
 			Ok(b) => b,
 			Err(e) => {
@@ -82,7 +86,6 @@ pub async fn task_submit(
 	monitor_sender: MonitorSender,
 ) -> std::result::Result<(), (Option<U64>, Error)> {
 	while let Ok(r) = msg_receiver.recv_timeout(Delay::new(Duration::from_secs(1))).await {
-		// while let Ok(events) = event_receiver.recv().await {
 		let r = match r {
 			Some(a) => a,
 			None => continue,
@@ -90,7 +93,7 @@ pub async fn task_submit(
 		log::info!("recv msg in task4");
 		// in theory, inputs wont be empty here
 		let inputs = serde_json::from_slice(&*r).map_err(|e| (None, e.into()))?;
-
+		// todo: need a blocknumber here
 		let res = super::submit_txs(
 			&config.aggregator_contract,
 			config.private_key,

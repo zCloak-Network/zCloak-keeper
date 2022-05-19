@@ -5,7 +5,7 @@ pub use sp_core::{
 	storage::{StorageData, StorageKey},
 	Bytes, H256 as Hash,
 };
-use std::default::Default;
+use std::{default::Default, time::Duration};
 use web3::{
 	contract::{tokens::Detokenize, Error as ContractError},
 	ethabi::Token,
@@ -41,6 +41,7 @@ pub mod verify;
 // todo: move
 pub const CHANNEL_LOG_TARGET: &str = "Channel";
 pub const MESSAGE_PARSE_LOG_TARGET: &str = "Message Parse";
+pub const TIMEOUT_DURATION: Duration = Duration::from_secs(30);
 
 pub type Bytes32 = [u8; 32];
 pub type Result<T> = std::result::Result<T, (Option<U64>, error::Error)>;
@@ -202,11 +203,9 @@ impl VerifyResult {
 
 #[cfg(test)]
 mod tests {
-	use std::str::FromStr;
-
-	use web3::types::Address;
-
 	use crate::{traits::JsonParse, ProofEvent, VerifyResult};
+	use std::str::FromStr;
+	use web3::types::Address;
 
 	#[test]
 	fn proof_event_parse_should_work() {
