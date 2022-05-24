@@ -4,8 +4,6 @@ ARG PROFILE=release
 WORKDIR /app
 
 COPY . .
-#COPY config /root/.cargo/
-COPY config.toml /usr/local/cargo/
 
 RUN set -eux && cargo build --${PROFILE} 
 
