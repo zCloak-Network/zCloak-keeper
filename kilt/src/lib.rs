@@ -1,13 +1,14 @@
 use jsonrpsee::types::Error as RpcError;
-
 use keeper_primitives::{
 	kilt::{
 		get_attestation_storage_key, Attestation, Error, KiltClient, KILT_LOG_TARGET,
 		KILT_MAX_RETRY_TIMES,
 	},
-	Decode, Hash, Result, VerifyResult,
+	Decode, Hash, Result, VerifyResult, TIMEOUT_DURATION,
 };
+use std::time::Duration;
 pub use task::task_attestation;
+use tokio::time::{timeout_at, Instant};
 
 mod task;
 
@@ -15,12 +16,16 @@ pub async fn filter(client: &KiltClient, result: Vec<VerifyResult>) -> Result<Ve
 	let mut v = vec![];
 	for i in result {
 		// query attestation details from kilt
-		let maybe_attest = query_attestation(client, i.root_hash.into())
-			.await
-			.map_err(|e| (i.number, e.into()))?;
+		let maybe_attest = timeout_at(
+			Instant::now() + TIMEOUT_DURATION,
+			query_attestation(client, i.root_hash.into()),
+		)
+		.await
+		.map_err(|e| e.into())
+		.map_err(|e: keeper_primitives::kilt::Error| (i.number, e.into()))?;
 
 		let mut v_update = i.clone();
-
+		let maybe_attest = maybe_attest.map_err(|e| (i.number, e.into()))?;
 		// submit to moonbeam if and only if
 		// the attestation neither empty or revoked
 		if maybe_attest.is_some() &&

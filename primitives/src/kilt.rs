@@ -120,6 +120,8 @@ pub enum Error {
 	Serialization(#[from] serde_json::error::Error),
 	#[error("Error decoding storage value: {0}")]
 	StorageValueDecode(#[from] codec::Error),
+	#[error("Timeout error, err: {0}")]
+	TimeOutError(#[from] tokio::time::error::Elapsed),
 }
 
 type Result<T> = std::result::Result<T, Error>;

@@ -216,7 +216,7 @@ pub async fn run(
 				}
 
 				match e.1 {
-					Error::KiltError(KiltError::KiltClientError(_e)) => {
+					Error::KiltError(KiltError::KiltClientError(_)) | Error::TimeOutError(_) => {
 						// TODO need retry
 						sleep().await;
 						continue
