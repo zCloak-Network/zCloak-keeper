@@ -11,6 +11,7 @@ use keeper_primitives::{
 use secp256k1::SecretKey;
 pub use task::{task_scan, task_submit};
 use tokio::time::{timeout_at, Instant};
+pub mod metrics;
 mod task;
 
 // scan moonbeam events

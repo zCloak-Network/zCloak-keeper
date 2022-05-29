@@ -31,6 +31,9 @@ pub struct StartOptions {
 	/// The starting block number of scanning node events.
 	#[structopt(short, long)]
 	pub start_number: Option<u64>,
+
+	#[structopt(short, long)]
+	pub prometheus_port: Option<u16>,
 }
 
 impl StartOptions {

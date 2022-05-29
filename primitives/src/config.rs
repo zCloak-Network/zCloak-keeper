@@ -2,7 +2,9 @@ use super::{
 	Address, Contract, Deserialize, Http, IpfsClient, IpfsConfig, KiltClient, KiltConfig,
 	MoonbeamClient, MoonbeamConfig, Serialize,
 };
+#[cfg(feature = "monitor")]
 use crate::monitor::MonitorConfig;
+use crate::monitor::{PrometheusConfig, PrometheusRegistry};
 use secp256k1::SecretKey;
 use std::{fs::File, path::PathBuf};
 
@@ -27,6 +29,7 @@ pub struct ConfigInstance {
 	pub keeper_address: Address,
 	#[cfg(feature = "monitor")]
 	pub bot_url: String,
+	pub prometheus_registry: Option<PrometheusRegistry>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
@@ -35,7 +38,7 @@ pub struct Config {
 	pub ipfs: IpfsConfig,
 	pub kilt: KiltConfig,
 	#[cfg(feature = "monitor")]
-	pub monitor: MonitorConfig,
+	pub notify_bot: MonitorConfig,
 }
 
 impl Config {
@@ -89,6 +92,6 @@ mod tests {
 	fn config_load_in_feature_monitor_should_work() {
 		let path = PathBuf::from("./res/config-example.json");
 		let config = Config::load_from_json(&path).unwrap();
-		assert_eq!(config.monitor, MonitorConfig { bot_url: "bot_url".to_owned() });
+		assert_eq!(config.notify_bot, MonitorConfig { bot_url: "bot_url".to_owned() });
 	}
 }

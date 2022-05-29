@@ -7,6 +7,7 @@ use keeper_primitives::Error;
 
 mod command;
 mod entry;
+mod metrics;
 mod runner;
 mod tasks;
 

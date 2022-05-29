@@ -189,6 +189,7 @@ dependencies = [
  "futures",
  "hex",
  "keeper-primitives",
+ "lazy_static",
  "log",
  "secp256k1",
  "serde 1.0.136",
@@ -1556,9 +1557,11 @@ dependencies = [
  "frame-metadata",
  "futures-timer",
  "hex",
+ "hyper",
  "jsonrpsee",
  "log",
  "parity-scale-codec",
+ "prometheus",
  "reqwest",
  "secp256k1",
  "serde 1.0.136",
@@ -2301,6 +2304,27 @@ checksum = "ec757218438d5fda206afc041538b2f6d889286160d649a86a24d37e1235afd1"
 dependencies = [
  "unicode-xid",
 ]
+
+[[package]]
+name = "prometheus"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cface98dfa6d645ea4c789839f176e4b072265d085bfcc48eaa8d137f58d3c39"
+dependencies = [
+ "cfg-if 1.0.0",
+ "fnv",
+ "lazy_static",
+ "memchr",
+ "parking_lot 0.12.0",
+ "protobuf",
+ "thiserror",
+]
+
+[[package]]
+name = "protobuf"
+version = "2.27.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf7e6d18738ecd0902d30d1ad232c9125985a3422929b16c65517b38adc14f96"
 
 [[package]]
 name = "quick-error"

@@ -1,13 +1,13 @@
-use crate::U64;
 use keeper_primitives::{
-	monitor::{MonitorMetrics, MonitorSender},
 	moonbeam::{MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET},
-	ConfigInstance, Delay, Error, JsonParse, MqReceiver, MqSender, CHANNEL_LOG_TARGET,
-	TIMEOUT_DURATION,
+	ConfigInstance, Delay, Error, JsonParse, MqReceiver, MqSender, Result as KeeperResult,
+	CHANNEL_LOG_TARGET, TIMEOUT_DURATION, U64,
 };
-use tokio::time::{sleep, timeout_at, Duration, Instant};
+use std::sync::Arc;
 
-use super::KeeperResult;
+use crate::metrics::{MoonbeamMetrics, MoonbeamMetricsExt};
+use keeper_primitives::monitor::{MonitorSender, NotifyingMessage};
+use tokio::time::{sleep, timeout_at, Duration, Instant};
 
 pub async fn task_scan(
 	config: &ConfigInstance,
@@ -84,6 +84,7 @@ pub async fn task_submit(
 	config: &ConfigInstance,
 	msg_receiver: &mut MqReceiver,
 	monitor_sender: MonitorSender,
+	moonbeam_metrics: Option<Arc<MoonbeamMetrics>>,
 ) -> std::result::Result<(), (Option<U64>, Error)> {
 	while let Ok(r) = msg_receiver.recv_timeout(Delay::new(Duration::from_secs(1))).await {
 		let r = match r {
@@ -102,13 +103,18 @@ pub async fn task_submit(
 		)
 		.await;
 
+		// update metrics
+		if moonbeam_metrics.is_some() {
+			moonbeam_metrics.report(|m| m.submitted_verify_transactions.inc());
+		}
+
 		match res {
 			Ok(_) => {
 				r.commit().map_err(|e| (None, e.into()))?;
 			},
 			Err(e) =>
 				if cfg!(feature = "monitor") {
-					let monitor_metrics = MonitorMetrics::new(
+					let monitor_metrics = NotifyingMessage::new(
 						MOONBEAM_SUBMIT_LOG_TARGET.to_string(),
 						e.0,
 						&e.1.into(),
