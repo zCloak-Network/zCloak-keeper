@@ -54,7 +54,16 @@ pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error
 		Some(port) => {
 			let prometheus_config =
 				PrometheusConfig::new_with_default_registry(port, keeper_address);
-			Some(prometheus_config.prometheus_registry())
+			let registry = prometheus_config.prometheus_registry();
+			super::metrics::register_globals(&(registry))?;
+			let registry1 = registry.clone();
+			// init prometheus client
+			tokio::spawn(async move {
+				monitor::init_prometheus(port, registry1).await;
+				log::info!("Prometheus client is on.");
+			});
+
+			Some(registry)
 		},
 		None => None,
 	};
@@ -130,10 +139,10 @@ pub async fn run(
 	// register global metrics to prometheus
 	let unwrap_config = configs.read().await;
 	let registry = unwrap_config.clone().prometheus_registry;
-	if registry.is_some() {
-		// todo : ugly hacking
-		super::metrics::register_globals(&(registry.unwrap()))?;
-	}
+	// if registry.is_some() {
+	// 	// todo : ugly hacking
+	// 	super::metrics::register_globals(&(registry.unwrap()))?;
+	// }
 
 	// 1. scan moonbeam proof event, and push them to event channel
 	let task_scan = tokio::spawn(async move {

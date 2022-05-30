@@ -6,7 +6,10 @@ pub use prometheus::{
 	},
 	Error as PrometheusError, Registry as PrometheusRegistry,
 };
-pub use promeths::{utils::register, PrometheusConfig};
+pub use promeths::{
+	utils::{init_prometheus, register},
+	PrometheusConfig,
+};
 
 mod metrics;
 pub mod notify_bot;

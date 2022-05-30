@@ -74,10 +74,8 @@ pub(crate) mod utils {
 
 	/// Initializes the metrics context, and starts an HTTP server
 	/// to serve metrics.
-	pub async fn init_prometheus(
-		prometheus_addr: SocketAddr,
-		registry: Registry,
-	) -> std::result::Result<(), Error> {
+	pub async fn init_prometheus(port: u16, registry: Registry) -> std::result::Result<(), Error> {
+		let prometheus_addr = SocketAddr::new(IpAddr::from(EXTERNAL_PROMETHEUS_ADDR), port);
 		let listener = tokio::net::TcpListener::bind(&prometheus_addr)
 			.await
 			.map_err(|_| Error::PortInUse(prometheus_addr))?;
