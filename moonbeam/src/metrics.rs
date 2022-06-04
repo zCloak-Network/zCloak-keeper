@@ -1,6 +1,8 @@
 // todo: consider separate the metrics into independent ones
 
-use keeper_primitives::monitor::{register, Counter, PrometheusError, PrometheusRegistry, U64};
+use prometheus_endpoint::{
+	register, Counter, PrometheusError, Registry as PrometheusRegistry, U64,
+};
 use std::sync::Arc;
 
 pub struct MoonbeamMetrics {

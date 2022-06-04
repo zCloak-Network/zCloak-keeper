@@ -4,7 +4,7 @@ use super::{
 };
 #[cfg(feature = "monitor")]
 use crate::monitor::MonitorConfig;
-use crate::monitor::{PrometheusConfig, PrometheusRegistry};
+use prometheus::Registry as PrometheusRegistry;
 use secp256k1::SecretKey;
 use std::{fs::File, path::PathBuf};
 

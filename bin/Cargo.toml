@@ -33,6 +33,7 @@ keeper-primitives = { path = "../primitives" }
 moonbeam = { package = "component-moonbeam", path = "../moonbeam" }
 ipfs = { package = "component-ipfs", path = "../ipfs" }
 kilt = { package = "component-kilt", path = "../kilt" }
+prometheus-endpoint = { path = "../prometheus" }
 
 [features]
 monitor = ["keeper-primitives/monitor", "moonbeam/monitor"]

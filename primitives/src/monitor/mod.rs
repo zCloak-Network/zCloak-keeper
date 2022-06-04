@@ -1,4 +1,4 @@
-pub use metrics::{BasicMetrics, BasicMetricsExt};
+pub use notify_bot::*;
 pub use prometheus::{
 	core::{
 		AtomicF64 as F64, AtomicI64 as I64, AtomicU64 as U64, GenericCounter as Counter,
@@ -6,16 +6,8 @@ pub use prometheus::{
 	},
 	Error as PrometheusError, Registry as PrometheusRegistry,
 };
-pub use promeths::{
-	utils::{init_prometheus, register},
-	PrometheusConfig,
-};
 
-mod metrics;
 pub mod notify_bot;
-mod promeths;
-
-pub use notify_bot::*;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {

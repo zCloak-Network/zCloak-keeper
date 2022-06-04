@@ -191,6 +191,7 @@ dependencies = [
  "keeper-primitives",
  "lazy_static",
  "log",
+ "prometheus-endpoint",
  "secp256k1",
  "serde 1.0.136",
  "serde_json",
@@ -439,6 +440,7 @@ dependencies = [
  "keeper-primitives",
  "log",
  "parity-scale-codec",
+ "prometheus-endpoint",
  "secp256k1",
  "serde 1.0.136",
  "serde_json",
@@ -1746,9 +1748,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.16"
+version = "0.4.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6389c490849ff5bc16be905ae24bc913a9c8892e19b2341dbc175e14c341c2b8"
+checksum = "abb12e687cfb44aa40f41fc3978ef76448f9b6038cad6aef4259d3c095a2382e"
 dependencies = [
  "cfg-if 1.0.0",
 ]
@@ -2318,6 +2320,19 @@ dependencies = [
  "parking_lot 0.12.0",
  "protobuf",
  "thiserror",
+]
+
+[[package]]
+name = "prometheus-endpoint"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "hyper",
+ "keeper-primitives",
+ "log",
+ "prometheus",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

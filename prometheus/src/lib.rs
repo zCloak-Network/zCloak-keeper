@@ -1,18 +1,20 @@
-// todo: move this to an independent component
 // prometheus should be open to all keepers
-use super::*;
-use crate::Address;
 use hyper::{
 	http::StatusCode,
 	server::Server,
 	service::{make_service_fn, service_fn},
 	Body, Request, Response,
 };
+use keeper_primitives::Address;
 pub use prometheus::{
-	self, exponential_buckets, Histogram, HistogramOpts, HistogramVec, Opts, Registry,
+	self,
+	core::{AtomicU64 as U64, Collector, GenericCounter as Counter, GenericGauge as Gauge},
+	exponential_buckets, Error as PrometheusError, Histogram, HistogramOpts, HistogramVec, Opts,
+	Registry,
 };
-use prometheus::{core::Collector, Encoder, TextEncoder};
+use prometheus::{Encoder, TextEncoder};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+pub use utils::{init_prometheus, register};
 
 const EXTERNAL_PROMETHEUS_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 

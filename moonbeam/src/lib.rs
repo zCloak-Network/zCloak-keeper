@@ -1,16 +1,17 @@
 use keeper_primitives::{
 	moonbeam::{
-		self, utils::query_submit_and_finish_result, Events, ProofEvent, IS_FINISHED,
-		MOONBEAM_LISTENED_EVENT, MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SCAN_SPAN,
-		MOONBEAM_SUBMIT_LOG_TARGET, MOONBEAM_TRANSACTION_CONFIRMATIONS, SUBMIT_STATUS_QUERY,
-		SUBMIT_TX_MAX_RETRY_TIMES, SUBMIT_VERIFICATION,
+		self, utils::query_submit_and_finish_result, IS_FINISHED, MOONBEAM_LISTENED_EVENT,
+		MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SCAN_SPAN, MOONBEAM_SUBMIT_LOG_TARGET,
+		MOONBEAM_TRANSACTION_CONFIRMATIONS, SUBMIT_STATUS_QUERY, SUBMIT_TX_MAX_RETRY_TIMES,
+		SUBMIT_VERIFICATION,
 	},
-	Address, Contract, Http, MoonbeamClient, Result as KeeperResult, VerifyResult, Web3Options,
-	TIMEOUT_DURATION, U64,
+	Address, Contract, Events, Http, MoonbeamClient, ProofEvent, Result as KeeperResult,
+	VerifyResult, Web3Options, TIMEOUT_DURATION, U64,
 };
 use secp256k1::SecretKey;
 pub use task::{task_scan, task_submit};
 use tokio::time::{timeout_at, Instant};
+
 pub mod metrics;
 mod task;
 

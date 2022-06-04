@@ -8,12 +8,14 @@ use keeper_primitives::{
 	config::Error as ConfigError,
 	ipfs::{Error as IpfsError, IPFS_LOG_TARGET},
 	kilt::{Error as KiltError, KILT_LOG_TARGET},
-	monitor::{self, NotifyingMessage, PrometheusConfig},
+	monitor::{self, NotifyingMessage},
 	moonbeam::{Error as MoonbeamError, MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET},
 	Config, ConfigInstance, Error, IpfsClient, Key, KiltClient, MoonbeamClient, SecretKeyRef, U64,
 };
 
 use crate::{command::StartOptions, metrics::TOKIO_THREADS_TOTAL};
+
+use prometheus_endpoint::{init_prometheus, register, PrometheusConfig};
 
 const SLEEP_SECS: u64 = 1;
 
@@ -59,7 +61,7 @@ pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error
 			let registry1 = registry.clone();
 			// init prometheus client
 			tokio::spawn(async move {
-				monitor::init_prometheus(port, registry1).await;
+				init_prometheus(port, registry1).await;
 				log::info!("Prometheus client is on.");
 			});
 
