@@ -1,3 +1,5 @@
+use super::*;
+use crate::{moonbeam::MOONBEAM_SCAN_LOG_TARGET, Address, Deserialize, Error, Serialize, U64};
 use std::collections::HashMap;
 
 use reqwest::Client;
@@ -6,8 +8,6 @@ use tokio::{
 	sync::mpsc::{Receiver, Sender},
 	time::Duration,
 };
-
-use super::{Address, Deserialize, Serialize, U64};
 
 const TIME_OUT: Duration = Duration::from_secs(5);
 
@@ -19,7 +19,7 @@ pub struct MonitorConfig {
 // todo: structure monitor message send
 
 #[derive(Debug)]
-pub struct MonitorMetrics {
+pub struct NotifyingMessage {
 	// align with log target
 	target: String,
 	block_number: Option<U64>,
@@ -28,16 +28,16 @@ pub struct MonitorMetrics {
 	client_address: String,
 }
 
-pub type MonitorSender = Sender<MonitorMetrics>;
-pub type MonitorReceiver = Receiver<MonitorMetrics>;
+pub type MonitorSender = Sender<NotifyingMessage>;
+pub type MonitorReceiver = Receiver<NotifyingMessage>;
 
 pub type KeywordReplace = HashMap<String, String>;
 
-impl MonitorMetrics {
+impl NotifyingMessage {
 	pub fn new(
 		target: String,
 		block_number: Option<U64>,
-		error: &super::Error,
+		error: &Error,
 		keeper_address: Address,
 		client_address: &String,
 	) -> Self {
@@ -72,7 +72,7 @@ impl MonitorMetrics {
 
 	pub fn message(&self) -> Result<String> {
 		let replace = self.monitor_keywords();
-		let template = include_str!("../res/monitor_template");
+		let template = include_str!("../../res/monitor_template");
 
 		Ok(template.format(&replace)?)
 	}
@@ -88,34 +88,21 @@ pub async fn alert(bot_url: &str, body: String) -> Result<()> {
 	Ok(())
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-	#[error("POST monitor bot error, reason: {0}")]
-	HttpError(#[from] reqwest::Error),
-	#[error("Monitor message pack error, err: {0}")]
-	TemplateFormatError(#[from] strfmt::FmtError),
-}
-
-pub type Result<T> = std::result::Result<T, Error>;
-
 #[cfg(test)]
 mod tests {
+	use super::*;
+	use crate::monitor::NotifyingMessage;
 	use std::str::FromStr;
 
-	use crate::{
-		monitor::{alert, MonitorMetrics},
-		moonbeam::MOONBEAM_SCAN_LOG_TARGET,
-		Address,
-	};
-
 	#[inline]
-	fn new_monitor_metrics() -> MonitorMetrics {
-		MonitorMetrics {
+	fn new_monitor_metrics() -> NotifyingMessage {
+		NotifyingMessage {
 			target: MOONBEAM_SCAN_LOG_TARGET.to_string(),
 			block_number: Some(32.into()),
 			error_msg: "Test error message".to_string(),
 			keeper_address: Address::from_str("9dD21AdF685CBf76bD3288AEdC5A62b9AddBcd8d")
 				.expect("Wrong address format"),
+			client_address: "".to_string(),
 		}
 	}
 	#[test]
@@ -127,7 +114,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn send_to_bot_should_work() {
-		let bot_url = include_str!("../res/bot-url");
+		let bot_url = include_str!("../../res/bot-url");
 		println!("the bot url is {}", bot_url);
 		let msg = new_monitor_metrics().message().expect("monitor template format error");
 		println!("the messge is \n {:}", &msg);

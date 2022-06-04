@@ -23,7 +23,7 @@ secp256k1 = { version = "0.21", features = ["recovery"] }
 env_logger = "0.9.0"
 hex = "0.4"
 futures = "0.3.21"
-
+lazy_static = "1.4.0"
 
 #msq
 yaque = "0.6.3"
@@ -33,6 +33,7 @@ keeper-primitives = { path = "../primitives" }
 moonbeam = { package = "component-moonbeam", path = "../moonbeam" }
 ipfs = { package = "component-ipfs", path = "../ipfs" }
 kilt = { package = "component-kilt", path = "../kilt" }
+prometheus-endpoint = { path = "../prometheus" }
 
 [features]
 monitor = ["keeper-primitives/monitor", "moonbeam/monitor"]

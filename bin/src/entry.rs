@@ -8,13 +8,14 @@ use keeper_primitives::{
 	config::Error as ConfigError,
 	ipfs::{Error as IpfsError, IPFS_LOG_TARGET},
 	kilt::{Error as KiltError, KILT_LOG_TARGET},
-	monitor,
-	monitor::MonitorMetrics,
+	monitor::{self, NotifyingMessage},
 	moonbeam::{Error as MoonbeamError, MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET},
 	Config, ConfigInstance, Error, IpfsClient, Key, KiltClient, MoonbeamClient, SecretKeyRef, U64,
 };
 
-use crate::command::StartOptions;
+use crate::{command::StartOptions, metrics::TOKIO_THREADS_TOTAL};
+
+use prometheus_endpoint::{init_prometheus, register, PrometheusConfig};
 
 const SLEEP_SECS: u64 = 1;
 
@@ -48,7 +49,26 @@ pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error
 	let keeper_address = key_ref.address();
 
 	#[cfg(feature = "monitor")]
-	let bot_url = config.monitor.bot_url;
+	let bot_url = config.notify_bot.bot_url;
+
+	// init prometheus registry
+	let prometheus_registry = match start_options.prometheus_port {
+		Some(port) => {
+			let prometheus_config =
+				PrometheusConfig::new_with_default_registry(port, keeper_address);
+			let registry = prometheus_config.prometheus_registry();
+			super::metrics::register_globals(&(registry))?;
+			let registry1 = registry.clone();
+			// init prometheus client
+			tokio::spawn(async move {
+				init_prometheus(port, registry1).await;
+				log::info!("Prometheus client is on.");
+			});
+
+			Some(registry)
+		},
+		None => None,
+	};
 
 	let config_instance = ConfigInstance {
 		channel_files,
@@ -61,6 +81,7 @@ pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error
 		keeper_address,
 		#[cfg(feature = "monitor")]
 		bot_url,
+		prometheus_registry,
 	};
 
 	log::info!("ConfigInstance initialized");
@@ -102,7 +123,7 @@ pub async fn run(
 
 	// alert message sending
 	let (monitor_sender, mut monitor_receiver) =
-		tokio::sync::mpsc::channel::<monitor::MonitorMetrics>(100);
+		tokio::sync::mpsc::channel::<NotifyingMessage>(100);
 
 	// spread configs
 	let config1 = configs.clone();
@@ -117,8 +138,17 @@ pub async fn run(
 	let monitor_sender3 = monitor_sender.clone();
 	let monitor_sender4 = monitor_sender.clone();
 
+	// register global metrics to prometheus
+	let unwrap_config = configs.read().await;
+	let registry = unwrap_config.clone().prometheus_registry;
+	// if registry.is_some() {
+	// 	// todo : ugly hacking
+	// 	super::metrics::register_globals(&(registry.unwrap()))?;
+	// }
+
 	// 1. scan moonbeam proof event, and push them to event channel
 	let task_scan = tokio::spawn(async move {
+		TOKIO_THREADS_TOTAL.inc();
 		let config = config1.read().await;
 		let mut count = 0;
 		loop {
@@ -130,7 +160,7 @@ pub async fn run(
 			// handle error
 			if let Err(e) = res {
 				if cfg!(feature = "monitor") {
-					let monitor_metrics = MonitorMetrics::new(
+					let monitor_metrics = NotifyingMessage::new(
 						MOONBEAM_SCAN_LOG_TARGET.to_string(),
 						e.0,
 						&e.1,
@@ -159,6 +189,7 @@ pub async fn run(
 	// 2. query ipfs and verify cid proof
 	// TODO: separate ipfs query end starksvm verify
 	let task_ipfs_verify = tokio::spawn(async move {
+		TOKIO_THREADS_TOTAL.inc();
 		let config = config2.read().await;
 		loop {
 			let res = ipfs::task_verify(&config, (&mut attest_sender, &mut event_receiver)).await;
@@ -172,7 +203,7 @@ pub async fn run(
 				);
 
 				if cfg!(feature = "monitor") {
-					let monitor_metrics = MonitorMetrics::new(
+					let monitor_metrics = NotifyingMessage::new(
 						IPFS_LOG_TARGET.to_string(),
 						e.0,
 						&e.1,
@@ -197,6 +228,7 @@ pub async fn run(
 	//
 	// 3. query kilt
 	let task_kilt_attest = tokio::spawn(async move {
+		TOKIO_THREADS_TOTAL.inc();
 		let config = config3.read().await;
 		loop {
 			let res =
@@ -205,7 +237,7 @@ pub async fn run(
 			if let Err(e) = res {
 				log::error!(target: KILT_LOG_TARGET, "encounter error: {:?}", e);
 				if cfg!(feature = "monitor") {
-					let monitor_metrics = MonitorMetrics::new(
+					let monitor_metrics = NotifyingMessage::new(
 						KILT_LOG_TARGET.to_string(),
 						e.0,
 						&e.1,
@@ -229,14 +261,32 @@ pub async fn run(
 
 	// 4. submit tx
 	let task_submit_tx = tokio::spawn(async move {
+		TOKIO_THREADS_TOTAL.inc();
 		let config = config4.read().await;
 
+		// register tx submitted metrics
+		// todo: add notifying when error?
+		// todo: turn it into some attribute field
+		let moonbeam_metrics = match config.clone().prometheus_registry {
+			Some(registry) => {
+				let metrics = moonbeam::metrics::MoonbeamMetrics::register(&registry)
+					.expect("fail to register moonbeam metrics");
+				Some(Arc::new(metrics))
+			},
+			None => None,
+		};
+
 		loop {
-			let res =
-				moonbeam::task_submit(&config, &mut submit_receiver, monitor_sender4.clone()).await;
+			let res = moonbeam::task_submit(
+				&config,
+				&mut submit_receiver,
+				monitor_sender4.clone(),
+				moonbeam_metrics.clone(),
+			)
+			.await;
 			if let Err(e) = res {
 				if cfg!(feature = "monitor") {
-					let monitor_metrics = MonitorMetrics::new(
+					let monitor_metrics = NotifyingMessage::new(
 						MOONBEAM_SUBMIT_LOG_TARGET.to_string(),
 						e.0,
 						&e.1,

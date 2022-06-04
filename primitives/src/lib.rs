@@ -9,13 +9,13 @@ use std::{default::Default, time::Duration};
 use web3::{
 	contract::{tokens::Detokenize, Error as ContractError},
 	ethabi::Token,
-	Web3,
 };
 pub use web3::{
 	contract::{Contract, Options as Web3Options},
 	signing::{Key, SecretKeyRef},
 	transports::Http,
 	types::{Address, BlockNumber, FilterBuilder, Log, U64},
+	Web3,
 };
 pub use yaque::{Receiver as MqReceiver, Sender as MqSender};
 

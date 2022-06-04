@@ -38,6 +38,10 @@ sp-core = "4.0.0-dev"
 sp-runtime = "4.0.0-dev"
 frame-metadata = "14.2.0"
 
+# monitor
+prometheus = "0.13.1"
+hyper = { version = "0.14.16", features = ["full"] }
+
 
 [features]
 monitor = []

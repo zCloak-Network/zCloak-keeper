@@ -33,4 +33,7 @@ pub enum Error {
 	// todo: unify all timeout error
 	#[error("Timeout error, err: {0}")]
 	TimeOutError(#[from] tokio::time::error::Elapsed),
+
+	#[error("Prometheus Error, err: {0}")]
+	PrometheusError(#[from] super::monitor::PrometheusError),
 }

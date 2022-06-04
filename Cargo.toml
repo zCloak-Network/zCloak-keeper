@@ -1,2 +1,2 @@
 [workspace]
-members = ["bin", "ipfs", "kilt", "moonbeam", "primitives"]
+members = ["bin", "ipfs", "kilt", "prometheus", "moonbeam", "primitives"]
