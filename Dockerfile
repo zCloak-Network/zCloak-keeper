@@ -5,7 +5,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN set -eux && cargo build --${PROFILE} 
+RUN set -eux && cargo build --${PROFILE}  --features monitor
 
 
 # MAIN IMAGE FOR PEOPLE TO PULL --- small one#
