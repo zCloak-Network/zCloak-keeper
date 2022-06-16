@@ -1,8 +1,6 @@
 use std::path::PathBuf;
-
 use structopt::StructOpt;
-
-use keeper_primitives::{config::Error as ConfigError, ChannelFiles};
+use crate::config::{ChannelFiles, Error as ConfigError};
 
 const EVENT_TO_IPFS_CHANNEL: &str = "event2ipfs";
 const VERIFY_TO_ATTEST_CHANNEL: &str = "verify2attest";

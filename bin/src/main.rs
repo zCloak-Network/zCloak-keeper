@@ -1,15 +1,18 @@
+#![feature(is_some_with)]
+
 use env_logger::Env;
 use futures::FutureExt;
 use structopt::StructOpt;
 
 use command::Opt;
-use keeper_primitives::Error;
+use crate::error::Error;
 
 mod command;
 mod entry;
 mod metrics;
 mod runner;
-mod tasks;
+pub mod config;
+pub mod error;
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), Error> {

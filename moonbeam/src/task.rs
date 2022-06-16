@@ -1,25 +1,27 @@
 use keeper_primitives::{
-	moonbeam::{MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET},
-	ConfigInstance, Delay, Error, JsonParse, MqReceiver, MqSender, Result as KeeperResult,
+	Delay, JsonParse, MqReceiver, MqSender,
 	CHANNEL_LOG_TARGET, TIMEOUT_DURATION, U64,
 };
 use std::sync::Arc;
-
 use crate::metrics::{MoonbeamMetrics, MoonbeamMetricsExt};
+use crate::funcs::{scan_events, submit_txs};
 use keeper_primitives::monitor::{MonitorSender, NotifyingMessage};
 use tokio::time::{sleep, timeout_at, Duration, Instant};
+use keeper_primitives::traits::IpAddress;
+use crate::MoonbeamResult;
+use crate::types::{MOONBEAM_BLOCK_DURATION, MOONBEAM_SCAN_LOG_TARGET, Service};
 
 pub async fn task_scan(
-	config: &ConfigInstance,
+	service: &Service,
 	msg_sender: &mut MqSender,
 	mut start: U64,
 	_monitor_sender: MonitorSender,
-) -> KeeperResult<()> {
+) -> MoonbeamResult<()> {
 	let mut tmp_start_cache = 0.into();
 
 	loop {
 		let maybe_best =
-			timeout_at(Instant::now() + TIMEOUT_DURATION, config.moonbeam_client.best_number())
+			timeout_at(Instant::now() + TIMEOUT_DURATION, service.client.best_number())
 				.await
 				.map_err(|e| (None, e.into()))?;
 		let best = match maybe_best {
@@ -45,13 +47,13 @@ pub async fn task_scan(
 		// only throw err if event parse error
 		// todo: could return and throw error instead of expect
 		let (res, end) =
-			super::scan_events(start, best, &config.moonbeam_client, &config.proof_contract)
+			scan_events(start, best, &service.client, &service.client.proof_contract(&service.config.read_contract))
 				.await?;
 
 		if res.is_some() {
 			// send result to channel
-			// unwrap MUST succeed
-			let output = res.unwrap().into_bytes().map_err(|e| (Some(start), e.into()))?;
+			// note: unwrap MUST succeed
+			let output = res.unwrap().into_bytes().map_err(|e: serde_json::Error| (Some(start), e.into()))?;
 
 			let status = msg_sender.send(output).await;
 			if let Err(e) = status {
@@ -66,11 +68,11 @@ pub async fn task_scan(
 			// reset the tmp_start_cache
 			tmp_start_cache = end;
 		} else {
-			let latest = &config.moonbeam_client.best_number().await.unwrap_or_default();
+			let latest = &service.client.best_number().await.unwrap_or_default();
 			if start == *latest {
 				// if current start is the best number, then sleep the block duration.
 				log::info!("sleep for scan block... current:{:}|best:{:}", start, latest);
-				sleep(Duration::from_secs(keeper_primitives::moonbeam::MOONBEAM_BLOCK_DURATION))
+				sleep(Duration::from_secs(MOONBEAM_BLOCK_DURATION))
 					.await;
 			}
 		}
@@ -81,11 +83,10 @@ pub async fn task_scan(
 }
 
 pub async fn task_submit(
-	config: &ConfigInstance,
+	service: &Service,
 	msg_receiver: &mut MqReceiver,
 	monitor_sender: MonitorSender,
-	moonbeam_metrics: Option<Arc<MoonbeamMetrics>>,
-) -> std::result::Result<(), (Option<U64>, Error)> {
+) -> MoonbeamResult<()> {
 	while let Ok(r) = msg_receiver.recv_timeout(Delay::new(Duration::from_secs(1))).await {
 		let r = match r {
 			Some(a) => a,
@@ -95,34 +96,36 @@ pub async fn task_submit(
 		// in theory, inputs wont be empty here
 		let inputs = serde_json::from_slice(&*r).map_err(|e| (None, e.into()))?;
 		// todo: need a blocknumber here
-		let res = super::submit_txs(
-			&config.aggregator_contract,
-			config.private_key,
-			config.keeper_address,
+		let res = submit_txs(
+			//todo: move the func under Service
+			&service.client.aggregator_contract(&service.config.write_contract),
+			&service.private_key(),
 			inputs,
 		)
 		.await;
 
-		// update metrics
-		if moonbeam_metrics.is_some() {
-			moonbeam_metrics.report(|m| m.submitted_verify_transactions.inc());
-		}
+		// todo: update metrics
+		// service.metrics.is_some_and(|m| m.)
+		// if service.metrics.is_some() {
+		// 	service.metrics.report(|m| m.submitted_verify_transactions.inc());
+		// }
 
 		match res {
 			Ok(_) => {
 				r.commit().map_err(|e| (None, e.into()))?;
 			},
-			Err(e) =>
-				if cfg!(feature = "monitor") {
-					let monitor_metrics = NotifyingMessage::new(
-						MOONBEAM_SUBMIT_LOG_TARGET.to_string(),
-						e.0,
-						&e.1.into(),
-						config.keeper_address,
-						&config.moonbeam_client.ip_address,
-					);
-					monitor_sender.send(monitor_metrics).await;
-				},
+			Err(e) => {},
+			// todo: recover
+			// 	if cfg!(feature = "monitor") {
+			// 		let monitor_metrics = NotifyingMessage::new(
+			// 			MOONBEAM_SUBMIT_LOG_TARGET.to_string(),
+			// 			e.0,
+			// 			&e.1.into(),
+			// 			service.keeper_setting.keeper_address,
+			// 			&service.client.ip_address(),
+			// 		);
+			// 		monitor_sender.send(monitor_metrics).await;
+			// 	},
 		}
 	}
 

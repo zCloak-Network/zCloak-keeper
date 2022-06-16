@@ -23,6 +23,10 @@ jsonrpsee = { version = "0.6.1", features = [
   "http-client",
   "ws-client",
 ] }
+sp-core = "4.0.0-dev"
+sp-runtime = "4.0.0-dev"
+frame-metadata = "14.2.0"
 
 # self
 keeper-primitives = { path = "../primitives" }
+prometheus-endpoint = { path = "../prometheus"}

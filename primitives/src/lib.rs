@@ -2,40 +2,32 @@ pub use codec::{Decode, Encode};
 pub use futures_timer::Delay;
 pub use serde::{Deserialize, Serialize};
 pub use sp_core::{
-	storage::{StorageData, StorageKey},
-	Bytes, H256 as Hash,
+    Bytes,
+    H256 as Hash, storage::{StorageData, StorageKey},
 };
 use std::{default::Default, time::Duration};
 use web3::{
-	contract::{tokens::Detokenize, Error as ContractError},
-	ethabi::Token,
+    contract::{Error as ContractError, tokens::Detokenize},
+    ethabi::Token,
 };
 pub use web3::{
-	contract::{Contract, Options as Web3Options},
-	signing::{Key, SecretKeyRef},
-	transports::Http,
-	types::{Address, BlockNumber, FilterBuilder, Log, U64},
-	Web3,
+    contract::{Contract, Options as Web3Options},
+    signing::{Key, SecretKeyRef},
+    transports::Http,
+    types::{Address, BlockNumber, FilterBuilder, Log, U64},
+    Web3,
 };
 pub use yaque::{Receiver as MqReceiver, Sender as MqSender};
 
-pub use config::{ChannelFiles, Config, ConfigInstance};
-pub use error::Error;
-pub use ipfs::{IpfsClient, IpfsConfig};
-pub use kilt::{KiltClient, KiltConfig};
-pub use moonbeam::{MoonbeamClient, MoonbeamConfig};
 pub use traits::JsonParse;
 
 use crate::kilt::Attestation;
 
-pub mod config;
-pub mod error;
-pub mod ipfs;
 pub mod kilt;
 // #[cfg(feature = "monitor")]
+pub mod keeper;
 pub mod monitor;
-pub mod moonbeam;
-mod traits;
+pub mod traits;
 pub mod verify;
 
 // todo: move
@@ -44,7 +36,6 @@ pub const MESSAGE_PARSE_LOG_TARGET: &str = "Message Parse";
 pub const TIMEOUT_DURATION: Duration = Duration::from_secs(30);
 
 pub type Bytes32 = [u8; 32];
-pub type Result<T> = std::result::Result<T, (Option<U64>, error::Error)>;
 
 #[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
 pub struct ProofEvent {
@@ -150,12 +141,12 @@ impl ProofEvent {
 pub type Events = Vec<ProofEvent>;
 
 // todo: no need? just use serde_json::parse
-impl traits::JsonParse for Events {
-	fn into_bytes(self) -> std::result::Result<Vec<u8>, error::Error> {
+impl<E: From<serde_json::Error>> JsonParse<E> for Events {
+	fn into_bytes(self) -> std::result::Result<Vec<u8>, E> {
 		serde_json::to_vec(&self).map_err(|e| e.into())
 	}
 
-	fn try_from_bytes(json: &[u8]) -> std::result::Result<Self, error::Error> {
+	fn try_from_bytes(json: &[u8]) -> std::result::Result<Self, E> {
 		serde_json::from_slice(json).map_err(|e| e.into())
 	}
 }
@@ -203,7 +194,7 @@ impl VerifyResult {
 
 #[cfg(test)]
 mod tests {
-	use crate::{traits::JsonParse, ProofEvent, VerifyResult};
+	use crate::{ProofEvent, traits::JsonParse, VerifyResult};
 	use std::str::FromStr;
 	use web3::types::Address;
 

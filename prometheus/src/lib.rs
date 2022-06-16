@@ -5,7 +5,6 @@ use hyper::{
 	service::{make_service_fn, service_fn},
 	Body, Request, Response,
 };
-use keeper_primitives::Address;
 pub use prometheus::{
 	self,
 	core::{AtomicU64 as U64, Collector, GenericCounter as Counter, GenericGauge as Gauge},
@@ -22,12 +21,13 @@ const EXTERNAL_PROMETHEUS_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 pub struct PrometheusConfig {
 	/// Port to use.
 	pub socket_addr: SocketAddr,
-	pub keeper_addr: Address,
+	// todo: change it to Address
+	pub keeper_addr: String,
 }
 
 impl PrometheusConfig {
 	/// Create a new config using the default registry.
-	pub fn new_with_default_registry(port: u16, keeper_addr: Address) -> Self {
+	pub fn new_with_default_registry(port: u16, keeper_addr: String) -> Self {
 		// default: external
 		// todo: give keeper maintainer a chance to choose local or external mode
 		let socket_addr = SocketAddr::new(IpAddr::from(EXTERNAL_PROMETHEUS_ADDR), port);
@@ -35,7 +35,7 @@ impl PrometheusConfig {
 	}
 
 	pub fn prometheus_registry(&self) -> Registry {
-		let keeper_addr_str = hex::encode(self.keeper_addr);
+		let keeper_addr_str = self.keeper_addr.to_owned();
 		let param = std::iter::once((String::from("keeper"), keeper_addr_str)).collect();
 		Registry::new_custom(None, Some(param)).expect("this can only fail if the prefix is empty")
 	}

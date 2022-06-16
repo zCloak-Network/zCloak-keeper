@@ -5,6 +5,7 @@ use prometheus_endpoint::{
 };
 use std::sync::Arc;
 
+#[derive(Debug, Clone)]
 pub struct MoonbeamMetrics {
 	pub submitted_verify_transactions: Counter<U64>,
 }

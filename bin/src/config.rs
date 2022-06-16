@@ -1,12 +1,13 @@
-use super::{
-	Address, Contract, Deserialize, Http, IpfsClient, IpfsConfig, KiltClient, KiltConfig,
-	MoonbeamClient, MoonbeamConfig, Serialize,
-};
 #[cfg(feature = "monitor")]
-use crate::monitor::MonitorConfig;
-use prometheus::Registry as PrometheusRegistry;
+use keeper_primitives::monitor::MonitorConfig;
+use keeper_primitives::{Serialize, Deserialize};
+use prometheus_endpoint::Registry as PrometheusRegistry;
 use secp256k1::SecretKey;
 use std::{fs::File, path::PathBuf};
+use moonbeam::{MoonbeamConfig, MoonbeamClient};
+use keeper_primitives::{Contract, Http, Address};
+use kilt::{KiltConfig, KiltClient};
+use ipfs::{IpfsConfig, IpfsClient};
 
 // todo: move
 #[derive(Clone, Debug)]
@@ -16,21 +17,6 @@ pub struct ChannelFiles {
 	pub attest_to_submit: PathBuf,
 }
 
-// todo move
-#[derive(Clone, Debug)]
-pub struct ConfigInstance {
-	pub channel_files: ChannelFiles,
-	pub moonbeam_client: MoonbeamClient,
-	pub ipfs_client: IpfsClient,
-	pub kilt_client: KiltClient,
-	pub proof_contract: Contract<Http>,
-	pub aggregator_contract: Contract<Http>,
-	pub private_key: SecretKey,
-	pub keeper_address: Address,
-	#[cfg(feature = "monitor")]
-	pub bot_url: String,
-	pub prometheus_registry: Option<PrometheusRegistry>,
-}
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub struct Config {
@@ -64,15 +50,13 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[cfg(test)]
 mod tests {
 	use std::path::PathBuf;
-
-	use crate::{monitor::MonitorConfig, Config};
+	use super::*;
 
 	#[test]
 	#[cfg(not(feature = "monitor"))]
 	fn config_parse_should_work() {
 		let path = PathBuf::from("./res/config-example.json");
 		let config = Config::load_from_json(&path).unwrap();
-		use crate::{IpfsConfig, KiltConfig, MoonbeamConfig};
 		let expect = Config {
 			moonbeam: MoonbeamConfig {
 				url: "http://127.0.0.1:7545".to_string(),

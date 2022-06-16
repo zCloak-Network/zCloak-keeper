@@ -1,5 +1,5 @@
 use super::*;
-use crate::{moonbeam::MOONBEAM_SCAN_LOG_TARGET, Address, Deserialize, Error, Serialize, U64};
+use crate::{Address, U64, Serialize, Deserialize};
 use std::collections::HashMap;
 
 use reqwest::Client;
@@ -8,6 +8,7 @@ use tokio::{
 	sync::mpsc::{Receiver, Sender},
 	time::Duration,
 };
+use crate::traits::IntoStr;
 
 const TIME_OUT: Duration = Duration::from_secs(5);
 
@@ -17,7 +18,6 @@ pub struct MonitorConfig {
 }
 
 // todo: structure monitor message send
-
 #[derive(Debug)]
 pub struct NotifyingMessage {
 	// align with log target
@@ -34,18 +34,17 @@ pub type MonitorReceiver = Receiver<NotifyingMessage>;
 pub type KeywordReplace = HashMap<String, String>;
 
 impl NotifyingMessage {
-	pub fn new(
+	pub fn new<T: IntoStr>(
 		target: String,
 		block_number: Option<U64>,
-		error: &Error,
+		error: &T,
 		keeper_address: Address,
 		client_address: &String,
 	) -> Self {
-		let error_msg = format!("{:?}", error);
 		Self {
 			target,
 			block_number,
-			error_msg,
+			error_msg: error.into_str(),
 			keeper_address,
 			client_address: String::from(client_address),
 		}

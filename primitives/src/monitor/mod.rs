@@ -1,11 +1,4 @@
 pub use notify_bot::*;
-pub use prometheus::{
-	core::{
-		AtomicF64 as F64, AtomicI64 as I64, AtomicU64 as U64, GenericCounter as Counter,
-		GenericCounterVec as CounterVec, GenericGauge as Gauge, GenericGaugeVec as GaugeVec,
-	},
-	Error as PrometheusError, Registry as PrometheusRegistry,
-};
 
 pub mod notify_bot;
 

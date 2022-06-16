@@ -1,13 +1,15 @@
 use std::time::Duration;
-
+use super::*;
 use keeper_primitives::{
-	ConfigInstance, Delay, Error, MqReceiver, MqSender, CHANNEL_LOG_TARGET, U64,
+	Delay, MqReceiver, MqSender, CHANNEL_LOG_TARGET, U64,
 };
+use crate::funcs::filter;
+use crate::types::Service;
 
 pub async fn task_attestation(
-	config: &ConfigInstance,
+	service: &Service,
 	msg_queue: (&mut MqSender, &mut MqReceiver),
-) -> std::result::Result<(), (Option<U64>, Error)> {
+) -> Result<()> {
 	while let Ok(r) = msg_queue.1.recv_timeout(Delay::new(Duration::from_secs(1))).await {
 		// while let Ok(events) = event_receiver.recv().await {
 		let r = match r {
@@ -19,7 +21,7 @@ pub async fn task_attestation(
 		let inputs = serde_json::from_slice(&*r).map_err(|e| (None, e.into()))?;
 
 		// have handled resoluble error inside filter
-		let res = super::filter(&config.kilt_client, inputs).await.map_err(|e| (e.0, e.1))?;
+		let res = filter(&service.client, inputs).await.map_err(|e| (e.0, e.1))?;
 
 		if !res.is_empty() {
 			let message_to_send = serde_json::to_vec(&res);

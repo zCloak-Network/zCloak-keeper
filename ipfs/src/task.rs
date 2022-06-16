@@ -1,15 +1,17 @@
+use super::*;
+use super::types::Service;
 use std::time::Duration;
-
 use keeper_primitives::{
-	ConfigInstance, Delay, Error, Events, JsonParse, MqReceiver, MqSender, CHANNEL_LOG_TARGET,
+	Delay, Events, JsonParse, MqReceiver, MqSender, CHANNEL_LOG_TARGET,
 	MESSAGE_PARSE_LOG_TARGET, U64,
 };
+use crate::funcs::query_and_verify;
 
 // todo: get block number in error return
 pub async fn task_verify(
-	config: &ConfigInstance,
+	service: &Service,
 	msg_queue: (&mut MqSender, &mut MqReceiver),
-) -> std::result::Result<(), (Option<U64>, Error)> {
+) -> Result<()> {
 	while let Ok(events) = msg_queue.1.recv_timeout(Delay::new(Duration::from_secs(1))).await {
 		let events = match events {
 			Some(a) => a,
@@ -19,7 +21,7 @@ pub async fn task_verify(
 		log::info!(target: CHANNEL_LOG_TARGET, "recv msg in task2");
 
 		// parse event from str to ProofEvent
-		let inputs = Events::try_from_bytes(&*events);
+		let inputs: std::result::Result<Events, serde_json::Error> = Events::try_from_bytes(&*events);
 		let inputs = match inputs {
 			Ok(r) => r,
 			Err(e) => {
@@ -33,7 +35,7 @@ pub async fn task_verify(
 			},
 		};
 
-		let res = super::query_and_verify(&config.ipfs_client, inputs).await?;
+		let res = query_and_verify(&service.client, inputs).await?;
 		// not empty
 		if res.is_some() {
 			// todo : ugly hacking

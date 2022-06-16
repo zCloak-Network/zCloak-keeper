@@ -1,7 +1,10 @@
+use prometheus_endpoint::PrometheusError;
+use keeper_primitives::traits::IntoStr;
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
 	#[error("Config load Error, err: {0}")]
-	ConfigLoadError(#[from] crate::config::Error),
+	ConfigLoadError(#[from] super::config::Error),
 
 	#[error("msg queue file I/O error,  err: {0}")]
 	IoError(#[from] std::io::Error),
@@ -9,17 +12,17 @@ pub enum Error {
 	#[error("Event Parse Error, err: {0}")]
 	EventParseError(#[from] serde_json::Error),
 
-	#[error("Moonbeam Error, err: {0}")]
-	MoonbeamError(#[from] crate::moonbeam::Error),
+	#[error(transparent)]
+	MoonbeamError(#[from] moonbeam::Error),
 
-	#[error("Fetch IPFS Error, err: {0}")]
-	IpfsError(#[from] crate::ipfs::Error),
+	#[error(transparent)]
+	IpfsError(#[from] ipfs::Error),
 
 	#[error("StarksVM Verify Error, err: {0}")]
-	StarksVMError(#[from] crate::verify::Error),
+	StarksVMError(#[from] keeper_primitives::verify::Error),
 
-	#[error("Fetch Kilt attestation Error, err: {0}")]
-	KiltError(#[from] crate::kilt::Error),
+	#[error(transparent)]
+	KiltError(#[from] kilt::Error),
 
 	#[error("Unexpect Error, err: {0}")]
 	OtherError(String),
@@ -35,5 +38,5 @@ pub enum Error {
 	TimeOutError(#[from] tokio::time::error::Elapsed),
 
 	#[error("Prometheus Error, err: {0}")]
-	PrometheusError(#[from] super::monitor::PrometheusError),
+	PrometheusError(#[from] PrometheusError),
 }

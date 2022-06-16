@@ -37,9 +37,10 @@ codec = { package = "parity-scale-codec", version = "2.0.0", features = [
 sp-core = "4.0.0-dev"
 sp-runtime = "4.0.0-dev"
 frame-metadata = "14.2.0"
+public-ip = "0.2"
 
 # monitor
-prometheus = "0.13.1"
+prometheus-endpoint = { path = "../prometheus" }
 hyper = { version = "0.14.16", features = ["full"] }
 
 
