@@ -1,15 +1,17 @@
 use secp256k1::SecretKey;
+use web3::types::U256;
 
+use crate::task::LocalReceiptQueue;
 use keeper_primitives::{
 	moonbeam::{
 		self, Events, ProofEvent, IS_FINISHED, MOONBEAM_LISTENED_EVENT, MOONBEAM_SCAN_LOG_TARGET,
 		MOONBEAM_SCAN_SPAN, MOONBEAM_SUBMIT_LOG_TARGET, MOONBEAM_TRANSACTION_CONFIRMATIONS,
 		SUBMIT_STATUS_QUERY, SUBMIT_VERIFICATION,
 	},
-	Address, Contract, Http, MoonbeamClient, Result as KeeperResult, VerifyResult, Web3Options,
-	U64,
+	Address, ConfigInstance, Contract, Http, MoonbeamClient, Result as KeeperResult, VerifyResult,
+	Web3Options, U64,
 };
-pub use task::{task_scan, task_submit};
+pub use task::{create_queue, task_scan, task_submit, LocalReceipt};
 
 mod task;
 
@@ -108,11 +110,14 @@ pub async fn scan_events(
 }
 
 pub async fn submit_txs(
+	config: &ConfigInstance,
 	contract: &Contract<Http>,
 	keeper_pri: SecretKey,
 	keeper_address: Address,
 	res: Vec<VerifyResult>,
-) -> std::result::Result<(), (Option<U64>, keeper_primitives::moonbeam::Error)> {
+	nonce: Option<U256>,
+	queue: LocalReceiptQueue,
+) -> Result<(), (Option<U64>, moonbeam::Error)> {
 	for v in res {
 		// TODO: read multiple times?
 		let has_submitted: bool = contract
@@ -143,60 +148,75 @@ pub async fn submit_txs(
 
 		if !has_submitted && !is_finished {
 			log::info!(
-			target: MOONBEAM_SUBMIT_LOG_TARGET,
-			"Start submitting: tx which contains user address: {:} |request_hash: {:}| root hash : {:} | isPassed: {}",
-			v.data_owner,
-			hex::encode(v.request_hash),
-			hex::encode(v.root_hash),
-			v.is_passed
-		);
-			let r = contract
-				.signed_call_with_confirmations(
-					SUBMIT_VERIFICATION,
-					(
-						v.data_owner,
-						v.request_hash,
-						v.c_type,
-						v.root_hash,
-						v.is_passed,
-						v.attester,
-						v.calc_output,
-					),
-					{
-						// todo: auto adjust options here
-						let mut options = Web3Options::default();
-						options.gas = Some(1000000.into());
-						options
-					},
-					MOONBEAM_TRANSACTION_CONFIRMATIONS,
-					&keeper_pri,
-				)
-				.await;
+				target: MOONBEAM_SUBMIT_LOG_TARGET,
+				"Start submitting: tx which contains user address: {:} |request_hash: {:}| root hash : {:} | isPassed: {}",
+				v.data_owner,
+				hex::encode(v.request_hash),
+				hex::encode(v.root_hash),
+				v.is_passed
+			);
 
-			match r {
-				Ok(r) => {
-					log::info!(
-						target: MOONBEAM_SUBMIT_LOG_TARGET,
-						"Successfully submit verification|tx:{:}|data owner:{:}|root_hash:{:}|is_passed: {:}|attester: {:}",
-						r.transaction_hash,
-						v.data_owner,
-						hex::encode(v.root_hash),
-						v.is_passed,
-						hex::encode(v.attester),
-					)
-				},
-				Err(e) => {
-					log::error!(
-						target: MOONBEAM_SUBMIT_LOG_TARGET,
-						"Error submit verification |data owner:{:}|root_hash:{:}|request_hash: {:}, err: {:?}",
-						v.data_owner,
-						hex::encode(v.root_hash),
-						hex::encode(v.request_hash),
-						e
-					);
-					return Err((v.number, e.into()))
-				},
-			}
+			// construct parameters for the contract call.
+			let params = (
+				v.data_owner,
+				v.request_hash,
+				v.c_type,
+				v.root_hash,
+				v.is_passed,
+				v.attester,
+				v.calc_output,
+			);
+
+			// TODO use functional way to re-write this part.
+			let send_at =
+				config.moonbeam_client.best_number().await.map_err(|e| (None, e.into()))?;
+			let nonce = match nonce {
+				Some(n) => n,
+				None => config
+					.moonbeam_client
+					.eth()
+					.transaction_count(config.keeper_address, None)
+					.await
+					.map_err(|e| (v.number, e.into()))?,
+			};
+			// construct the send option, the must important thing is nonce.
+			let mut options = Web3Options::default();
+			options.nonce = Some(nonce);
+			options.gas = Some(1000000_u128.into());
+			// send tx for this contract call, and return tx_hash immediately.
+			let tx_hash = contract
+				.signed_call(SUBMIT_VERIFICATION, params, options, &keeper_pri)
+				.await
+				.map_err(|e| (v.number, e.into()))?;
+			// for we do not know whether the tx will be packed in block, so we put related
+			// information as `LocalReceipt` and push into the end of the queue.
+			let local_receipt = LocalReceipt { send_at, nonce, tx_hash };
+			let mut q = queue.lock().await;
+			q.push_back(local_receipt);
+
+			log::info!(
+				target: MOONBEAM_SUBMIT_LOG_TARGET,
+				"submit verification|tx:{:}|data owner:{:}|root_hash:{:}|is_passed: {:}|attester: {:}",
+				tx_hash,
+				v.data_owner,
+				hex::encode(v.root_hash),
+				v.is_passed,
+				hex::encode(v.attester),
+			);
+			log::info!(
+				target: MOONBEAM_SUBMIT_LOG_TARGET,
+				"[queue_info] nonce:{:}|queue_len:{:}",
+				nonce,
+				q.len(),
+			);
+			log::debug!(target: MOONBEAM_SUBMIT_LOG_TARGET, "[queue_info] queue detail:{:}", {
+				use std::fmt::Write;
+				let mut s = String::new();
+				for i in q.iter() {
+					write!(&mut s, "|{:?}", i).expect("fmt must be valid.");
+				}
+				s
+			});
 		}
 	}
 

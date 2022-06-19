@@ -223,13 +223,19 @@ pub async fn run(
 		}
 	});
 
+	let queue = moonbeam::create_queue();
 	// 4. submit tx
 	let task_submit_tx = tokio::spawn(async move {
 		let config = config4.read().await;
 
 		loop {
-			let res =
-				moonbeam::task_submit(&config, &mut submit_receiver, monitor_sender4.clone()).await;
+			let res = moonbeam::task_submit(
+				&config,
+				&mut submit_receiver,
+				monitor_sender4.clone(),
+				queue.clone(),
+			)
+			.await;
 			if let Err(e) = res {
 				if cfg!(feature = "monitor") {
 					let monitor_metrics = MonitorMetrics::new(
@@ -256,12 +262,13 @@ pub async fn run(
 
 	// monitor
 	let task_monitor_handle = tokio::spawn(async move {
-		let config = config5.read().await;
-		while let Some(msg) = monitor_receiver.recv().await {
+		while let Some(_msg) = monitor_receiver.recv().await {
 			#[cfg(feature = "monitor")]
 			{
+				let config = config5.read().await;
 				let bot_url = &config.bot_url;
-				monitor::alert(&bot_url, msg.message().expect("monitor message parse wrong")).await;
+				monitor::alert(&bot_url, _msg.message().expect("monitor message parse wrong"))
+					.await;
 			}
 			// else do nothing
 		}

@@ -29,4 +29,9 @@ pub enum Error {
 
 	#[error("Task error, err: {0}")]
 	TaskJoinError(#[from] tokio::task::JoinError),
+
+	#[error(
+		"Can not handle local receipt queue item, len: {0}, front item send_at block number:{1}."
+	)]
+	ExceedQueueLen(usize, u64),
 }
