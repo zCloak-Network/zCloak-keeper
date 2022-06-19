@@ -17,7 +17,7 @@ pub const MOONBEAM_SCAN_SPAN: usize = 10;
 // TODO: move it to config file
 pub const MOONBEAM_LISTENED_EVENT: &'static str = "AddProof";
 pub const MOONBEAM_BLOCK_DURATION: u64 = 12;
-pub const MOONBEAM_TRANSACTION_CONFIRMATIONS: usize = 2;
+pub const MOONBEAM_TRANSACTION_CONFIRMATIONS: usize = 1;
 pub const MOONBEAM_SCAN_LOG_TARGET: &str = "MoonbeamScan";
 pub const MOONBEAM_SUBMIT_LOG_TARGET: &str = "MoonbeamSubmit";
 // contract function which keeper use to submit verification result
