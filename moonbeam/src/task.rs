@@ -125,7 +125,7 @@ pub async fn task_submit(
 				.await
 				.map_err(|e| (None, Error::MoonbeamError(e.into())))?;
 			if r.is_some() {
-				let i = q.pop_front().expect("item must exist here");
+				// let i = q.pop_front().expect("item must exist here");
 				log::info!(target: MOONBEAM_SUBMIT_LOG_TARGET, "[queue_info] pop item:{:?}", item);
 			} else {
 				// the tx has not be packed in blocks, so we push back front to the queue.
