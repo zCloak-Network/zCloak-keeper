@@ -161,7 +161,8 @@ pub async fn task_submit(
 			Ok(_) => {
 				r.commit().map_err(|e| (None, e.into()))?;
 			},
-			Err(e) =>
+			Err(e) => {
+				log::error!(target: MOONBEAM_SUBMIT_LOG_TARGET, "submit_txs error: {:?}", &e);
 				if cfg!(feature = "monitor") {
 					let monitor_metrics = MonitorMetrics::new(
 						MOONBEAM_SUBMIT_LOG_TARGET.to_string(),
@@ -170,7 +171,8 @@ pub async fn task_submit(
 						config.keeper_address,
 					);
 					monitor_sender.send(monitor_metrics).await;
-				},
+				}
+			},
 		}
 	}
 

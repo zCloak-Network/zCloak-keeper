@@ -129,6 +129,11 @@ pub async fn run(
 					.await;
 			// handle error
 			if let Err(e) = res {
+				log::error!(
+					target: MOONBEAM_SCAN_LOG_TARGET,
+					"[outer error] task scan error, {:?}",
+					e
+				);
 				if cfg!(feature = "monitor") {
 					let monitor_metrics = MonitorMetrics::new(
 						MOONBEAM_SCAN_LOG_TARGET.to_string(),
@@ -162,9 +167,9 @@ pub async fn run(
 			let res = ipfs::task_verify(&config, (&mut attest_sender, &mut event_receiver)).await;
 			if let Err(e) = res {
 				log::error!(
-					//todo: config
+					// todo: config
 					target: "IPFS_AND_VERIFY",
-					"encounter error: {:?} in block: {:?}",
+					"[outer error] task_ipfs_and_verify error: {:?} in block: {:?}",
 					e.1,
 					e.0
 				);
@@ -200,7 +205,11 @@ pub async fn run(
 				kilt::task_attestation(&config, (&mut submit_sender, &mut attest_receiver)).await;
 
 			if let Err(e) = res {
-				log::error!(target: KILT_LOG_TARGET, "encounter error: {:?}", e);
+				log::error!(
+					target: KILT_LOG_TARGET,
+					"[outer error] task_attestation error: {:?}",
+					e
+				);
 				if cfg!(feature = "monitor") {
 					let monitor_metrics = MonitorMetrics::new(
 						KILT_LOG_TARGET.to_string(),
@@ -237,6 +246,12 @@ pub async fn run(
 			)
 			.await;
 			if let Err(e) = res {
+				log::error!(
+					target: MOONBEAM_SUBMIT_LOG_TARGET,
+					"[outer error] task submit error, {:?}",
+					e
+				);
+
 				if cfg!(feature = "monitor") {
 					let monitor_metrics = MonitorMetrics::new(
 						MOONBEAM_SUBMIT_LOG_TARGET.to_string(),
