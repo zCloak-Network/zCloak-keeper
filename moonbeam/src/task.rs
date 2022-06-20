@@ -143,31 +143,16 @@ pub async fn task_submit(
 				Error::ExceedQueueLen(len, q.front().expect("nothing").send_at.as_u64()),
 			))
 		}
-
-		// 3. pick last item in the queue, for the last item will hold the newest nonce.
-		let nonce = if let Some(last) = q.back() {
-			let best = config.moonbeam_client.best_number().await.map_err(|e| (None, e.into()))?;
-			// TODO may need best hash
-			if best == last.send_at {
-				// it means the `send_at` block is same the current best, so we handle the nonce in
-				// local +1 for next nonce.
-				Some(last.nonce + U256::one())
-			} else {
-				None
-			}
-		} else {
-			None
-		};
 		drop(q);
 
-		// 4. enter submit process.
+		// enter submit process.
 		let res = super::submit_txs(
 			config,
 			&config.aggregator_contract,
 			config.private_key,
 			config.keeper_address,
 			inputs,
-			nonce,
+			// nonce,
 			queue.clone(),
 		)
 		.await;

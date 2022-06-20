@@ -115,10 +115,25 @@ pub async fn submit_txs(
 	keeper_pri: SecretKey,
 	keeper_address: Address,
 	res: Vec<VerifyResult>,
-	nonce: Option<U256>,
 	queue: LocalReceiptQueue,
 ) -> Result<(), (Option<U64>, moonbeam::Error)> {
+	let mut queue_guard = queue.lock().await;
 	for v in res {
+		// 3. pick last item in the queue, for the last item will hold the newest nonce.
+		let nonce = if let Some(last) = queue_guard.back() {
+			let best = config.moonbeam_client.best_number().await.map_err(|e| (None, e.into()))?;
+			// TODO may need best hash
+			if best == last.send_at {
+				// it means the `send_at` block is same the current best, so we handle the nonce in
+				// local +1 for next nonce.
+				Some(last.nonce + U256::one())
+			} else {
+				None
+			}
+		} else {
+			None
+		};
+
 		// TODO: read multiple times?
 		let has_submitted: bool = contract
 			.query(
@@ -191,8 +206,7 @@ pub async fn submit_txs(
 			// for we do not know whether the tx will be packed in block, so we put related
 			// information as `LocalReceipt` and push into the end of the queue.
 			let local_receipt = LocalReceipt { send_at, nonce, tx_hash };
-			let mut q = queue.lock().await;
-			q.push_back(local_receipt);
+			queue_guard.push_back(local_receipt);
 
 			log::info!(
 				target: MOONBEAM_SUBMIT_LOG_TARGET,
@@ -207,12 +221,12 @@ pub async fn submit_txs(
 				target: MOONBEAM_SUBMIT_LOG_TARGET,
 				"[queue_info] nonce:{:}|queue_len:{:}",
 				nonce,
-				q.len(),
+				queue_guard.len(),
 			);
 			log::debug!(target: MOONBEAM_SUBMIT_LOG_TARGET, "[queue_info] queue detail:{:}", {
 				use std::fmt::Write;
 				let mut s = String::new();
-				for i in q.iter() {
+				for i in queue_guard.iter() {
 					write!(&mut s, "|{:?}", i).expect("fmt must be valid.");
 				}
 				s
