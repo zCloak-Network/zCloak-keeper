@@ -262,6 +262,7 @@ pub async fn run(
 					monitor_sender4.send(monitor_metrics).await;
 				}
 
+				// todo: this bracket code no need
 				match e.1 {
 					Error::MoonbeamError(MoonbeamError::Web3Error(_)) |
 					Error::MoonbeamError(MoonbeamError::Web3ContractError(_)) => {

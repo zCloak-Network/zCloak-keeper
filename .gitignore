@@ -7,3 +7,4 @@
 **/bot-url
 data*
 **/cache*
+**/*.log

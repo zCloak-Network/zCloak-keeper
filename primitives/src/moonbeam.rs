@@ -24,6 +24,7 @@ pub const MOONBEAM_SUBMIT_LOG_TARGET: &str = "MoonbeamSubmit";
 pub const SUBMIT_VERIFICATION: &str = "submit";
 pub const SUBMIT_STATUS_QUERY: &str = "hasSubmitted";
 pub const IS_FINISHED: &str = "isFinished";
+pub const QUEUE_EXPIRE_DURATION: u8 = 30;
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub struct MoonbeamConfig {

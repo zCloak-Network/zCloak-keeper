@@ -119,22 +119,8 @@ pub async fn submit_txs(
 ) -> Result<(), (Option<U64>, moonbeam::Error)> {
 	let mut queue_guard = queue.lock().await;
 	for v in res {
-		// 3. pick last item in the queue, for the last item will hold the newest nonce.
-		let nonce = if let Some(last) = queue_guard.back() {
-			let best = config.moonbeam_client.best_number().await.map_err(|e| (None, e.into()))?;
-			// TODO may need best hash
-			if best == last.send_at {
-				// it means the `send_at` block is same the current best, so we handle the nonce in
-				// local +1 for next nonce.
-				Some(last.nonce + U256::one())
-			} else {
-				None
-			}
-		} else {
-			None
-		};
-
 		// TODO: read multiple times?
+		// if unable to get `has_submitted` result, then use false
 		let has_submitted: bool = contract
 			.query(
 				SUBMIT_STATUS_QUERY,
@@ -144,12 +130,29 @@ pub async fn submit_txs(
 				None,
 			)
 			.await
-			.map_err(|e| (v.number, e.into()))?;
+			.map_err(|e| {
+				log::error!(
+					target: MOONBEAM_SUBMIT_LOG_TARGET,
+					"has_submiited query error: {:?}",
+					&e
+				);
+				e
+			})
+			.unwrap_or_default();
 
+		// if unable to get `is_finished` result, then use false
 		let is_finished: bool = contract
 			.query(IS_FINISHED, (v.data_owner, v.request_hash), None, Web3Options::default(), None)
 			.await
-			.map_err(|e| (v.number, e.into()))?;
+			.map_err(|e| {
+				log::error!(
+					target: MOONBEAM_SUBMIT_LOG_TARGET,
+					"is_finished query error: {:?}",
+					&e
+				);
+				e
+			})
+			.unwrap_or_default();
 
 		log::info!(
 			target: MOONBEAM_SUBMIT_LOG_TARGET,
@@ -181,10 +184,32 @@ pub async fn submit_txs(
 				v.attester,
 				v.calc_output,
 			);
+			// pick last item in the queue, for the last item will hold the newest nonce.
+			let nonce = if let Some(last) = queue_guard.back() {
+				// don't throw error out
+				let best = config.moonbeam_client.best_number().await.unwrap_or_else(|e| {
+					log::error!(
+						target: MOONBEAM_SUBMIT_LOG_TARGET,
+						"[nonce] fail to get best, err is {:?}",
+						e
+					);
+					Default::default()
+				});
+				// TODO may need best hash
+				if best == last.send_at {
+					// it means the `send_at` block is same the current best, so we handle the nonce
+					// in local +1 for next nonce.
+					Some(last.nonce + U256::one())
+				} else {
+					// best != last.send_at or best is unable to get
+					None
+				}
+			} else {
+				None
+			};
 
 			// TODO use functional way to re-write this part.
-			let send_at =
-				config.moonbeam_client.best_number().await.map_err(|e| (None, e.into()))?;
+			// throw out if we cannot retrieve nonce on chain
 			let nonce = match nonce {
 				Some(n) => n,
 				None => config
@@ -198,31 +223,44 @@ pub async fn submit_txs(
 			let mut options = Web3Options::default();
 			options.nonce = Some(nonce);
 			options.gas = Some(1000000_u128.into());
+			// todo: adjust gas price?
 			// send tx for this contract call, and return tx_hash immediately.
+			// todo: handle the send tx error
 			let tx_hash = contract
 				.signed_call(SUBMIT_VERIFICATION, params, options, &keeper_pri)
 				.await
-				.map_err(|e| (v.number, e.into()))?;
+				.map_err(|e| {
+					log::error!(
+						target: MOONBEAM_SUBMIT_LOG_TARGET,
+						"[submit error] fail to submit: {:?}",
+						e
+					)
+				});
 			// for we do not know whether the tx will be packed in block, so we put related
 			// information as `LocalReceipt` and push into the end of the queue.
-			let local_receipt = LocalReceipt { send_at, nonce, tx_hash };
-			queue_guard.push_back(local_receipt);
+			if let Ok(hash) = tx_hash {
+				let send_at =
+					config.moonbeam_client.best_number().await.map_err(|e| (None, e.into()))?;
+				let local_receipt = LocalReceipt { send_at, nonce, tx_hash: hash };
+				queue_guard.push_back(local_receipt);
 
-			log::info!(
-				target: MOONBEAM_SUBMIT_LOG_TARGET,
-				"submit verification|tx:{:}|data owner:{:}|root_hash:{:}|is_passed: {:}|attester: {:}",
-				tx_hash,
-				v.data_owner,
-				hex::encode(v.root_hash),
-				v.is_passed,
-				hex::encode(v.attester),
-			);
-			log::info!(
-				target: MOONBEAM_SUBMIT_LOG_TARGET,
-				"[queue_info] nonce:{:}|queue_len:{:}",
-				nonce,
-				queue_guard.len(),
-			);
+				log::info!(
+					target: MOONBEAM_SUBMIT_LOG_TARGET,
+					"[already submitted]|tx:{:}|data owner:{:}|root_hash:{:}|is_passed: {:}|attester: {:}",
+					hash,
+					v.data_owner,
+					hex::encode(v.root_hash),
+					v.is_passed,
+					hex::encode(v.attester),
+				);
+				log::info!(
+					target: MOONBEAM_SUBMIT_LOG_TARGET,
+					"[queue_info] nonce:{:}|queue_len:{:}",
+					nonce,
+					queue_guard.len(),
+				);
+			}
+
 			log::debug!(target: MOONBEAM_SUBMIT_LOG_TARGET, "[queue_info] queue detail:{:}", {
 				use std::fmt::Write;
 				let mut s = String::new();

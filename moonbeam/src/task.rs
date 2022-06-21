@@ -4,7 +4,7 @@ use std::{collections::linked_list::LinkedList, sync::Arc};
 
 use keeper_primitives::{
 	monitor::{MonitorMetrics, MonitorSender},
-	moonbeam::{MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET},
+	moonbeam::{MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET, QUEUE_EXPIRE_DURATION},
 	ConfigInstance, Delay, Error, JsonParse, MqReceiver, MqSender, CHANNEL_LOG_TARGET,
 };
 use tokio::{
@@ -96,7 +96,7 @@ pub async fn task_scan(
 	}
 }
 
-const MAX_LOCAL_RECEIPT_QUEUE: usize = 100;
+const MAX_LOCAL_RECEIPT_QUEUE: usize = 200;
 
 pub async fn task_submit(
 	config: &ConfigInstance,
@@ -116,6 +116,7 @@ pub async fn task_submit(
 
 		// check queue before all execution process
 		// 1. pop packed hash in the queue.
+		let best = config.moonbeam_client.best_number().await.map_err(|e| (None, e.into()))?;
 		let mut q = queue.lock().await;
 		while let Some(item) = q.pop_front() {
 			let r = config
@@ -124,9 +125,16 @@ pub async fn task_submit(
 				.transaction(TransactionId::Hash(item.tx_hash))
 				.await
 				.map_err(|e| (None, Error::MoonbeamError(e.into())))?;
+			// if the tx is included or expired
+			// todo: expiration is not the best way to handle unconfirmed tx, change it later
 			if r.is_some() {
-				// let i = q.pop_front().expect("item must exist here");
 				log::info!(target: MOONBEAM_SUBMIT_LOG_TARGET, "[queue_info] pop item:{:?}", item);
+			} else if best - item.send_at > QUEUE_EXPIRE_DURATION.into() {
+				log::error!(
+					target: MOONBEAM_SUBMIT_LOG_TARGET,
+					"[queue_expiration pop item {:?}",
+					item
+				);
 			} else {
 				// the tx has not be packed in blocks, so we push back front to the queue.
 				q.push_front(item);
