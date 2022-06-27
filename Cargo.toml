@@ -1,2 +1,5 @@
 [workspace]
 members = ["bin", "ipfs", "kilt", "moonbeam", "primitives"]
+
+[patch.crates-io]
+web3 = { git = "https://github.com/zCloak-Network/rust-web3.git", branch = "v0.18.0-patch" }

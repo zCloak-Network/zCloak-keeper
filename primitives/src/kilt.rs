@@ -22,13 +22,18 @@ pub struct Deposit<Account, Balance> {
 	pub amount: Balance,
 }
 
-#[derive(Default, Clone, Debug, Encode, Decode, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct AttestationDetails<Hash: Encode + Clone, Account, Balance> {
 	pub ctype_hash: Hash,
 	pub attester: Account,
-	pub delegation_id: Option<Hash>,
+	pub authorization_id: Option<AuthorizationId<Hash>>,
 	pub revoked: bool,
 	pub deposit: Deposit<Account, Balance>,
+}
+
+#[derive(Clone, Debug, Encode, Decode, PartialEq)]
+pub enum AuthorizationId<DelegationId> {
+	Delegation(DelegationId),
 }
 
 pub type Attestation = AttestationDetails<Hash, AccountId, Balance>;
