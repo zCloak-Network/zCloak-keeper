@@ -7,6 +7,7 @@ use keeper_primitives::{config::Error as ConfigError, ChannelFiles};
 const EVENT_TO_IPFS_CHANNEL: &str = "event2ipfs";
 const VERIFY_TO_ATTEST_CHANNEL: &str = "verify2attest";
 const ATTEST_TO_SUBMIT_CHANNEL: &str = "attest2submit";
+const RESUBMIT_CHANNEL: &str = "resubmit";
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "zcloak Keeper", about = "zCloak keeper node start config")]
@@ -20,11 +21,16 @@ pub enum Opt {
 
 #[derive(Debug, Clone, StructOpt)]
 pub struct StartOptions {
-	///The zCloak keeper node config file path
+
+	/// The keeper's nick name
+	#[structopt(short, long)]
+	pub name: Option<String>,
+
+	/// The zCloak keeper node config file path
 	#[structopt(long, parse(from_os_str))]
 	pub config: Option<PathBuf>,
 
-	///The zCloak keeper node msg queue cache directory
+	/// The zCloak keeper node msg queue cache directory
 	#[structopt(long, parse(from_os_str))]
 	pub cache_dir: Option<PathBuf>,
 
@@ -40,7 +46,8 @@ impl StartOptions {
 				let event_to_ipfs = dir.join(EVENT_TO_IPFS_CHANNEL);
 				let verify_to_attest = dir.join(VERIFY_TO_ATTEST_CHANNEL);
 				let attest_to_submit = dir.join(ATTEST_TO_SUBMIT_CHANNEL);
-				Ok(ChannelFiles { event_to_ipfs, verify_to_attest, attest_to_submit })
+				let resubmit = dir.join(RESUBMIT_CHANNEL);
+				Ok(ChannelFiles { event_to_ipfs, verify_to_attest, attest_to_submit, resubmit })
 			},
 			None => Err(ConfigError::OtherError("Fail to create channel files.".to_owned())),
 		}

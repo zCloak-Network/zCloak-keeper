@@ -20,11 +20,14 @@ pub const MOONBEAM_BLOCK_DURATION: u64 = 12;
 pub const MOONBEAM_TRANSACTION_CONFIRMATIONS: usize = 1;
 pub const MOONBEAM_SCAN_LOG_TARGET: &str = "MoonbeamScan";
 pub const MOONBEAM_SUBMIT_LOG_TARGET: &str = "MoonbeamSubmit";
+pub const MOONBEAM_RESUBMIT_LOG_TARGET: &str = "MoonbeamReSubmit";
 // contract function which keeper use to submit verification result
 pub const SUBMIT_VERIFICATION: &str = "submit";
 pub const SUBMIT_STATUS_QUERY: &str = "hasSubmitted";
 pub const IS_FINISHED: &str = "isFinished";
 pub const QUEUE_EXPIRE_DURATION: u8 = 30;
+pub const RESUBMIT_INTERVAL: u64 = 12;
+pub const MAX_RETRY_TIMES: u8 = 10;
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub struct MoonbeamConfig {
@@ -34,6 +37,7 @@ pub struct MoonbeamConfig {
 	// where keeper submit the verify result
 	pub write_contract: String,
 	pub private_key: String,
+	pub private_key_optional: Option<String>,
 }
 
 #[derive(Clone, Debug)]

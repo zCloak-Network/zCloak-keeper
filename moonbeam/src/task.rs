@@ -1,11 +1,15 @@
-use crate::U64;
+use crate::{TxHashAndInfo, U64};
 
 use std::{collections::linked_list::LinkedList, sync::Arc};
 
 use keeper_primitives::{
 	monitor::{MonitorMetrics, MonitorSender},
-	moonbeam::{MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET, QUEUE_EXPIRE_DURATION},
-	ConfigInstance, Delay, Error, JsonParse, MqReceiver, MqSender, CHANNEL_LOG_TARGET,
+	moonbeam::{
+		MAX_RETRY_TIMES, MOONBEAM_RESUBMIT_LOG_TARGET, MOONBEAM_SCAN_LOG_TARGET,
+		MOONBEAM_SUBMIT_LOG_TARGET, QUEUE_EXPIRE_DURATION, RESUBMIT_INTERVAL,
+	},
+	ConfigInstance, Delay, Error, JsonParse, MqReceiver, MqSender, VerifyResult,
+	CHANNEL_LOG_TARGET,
 };
 use tokio::{
 	sync::Mutex,
@@ -15,24 +19,29 @@ use web3::types::{TransactionId, H256, U256};
 
 use super::KeeperResult;
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct LocalReceipt {
 	pub send_at: U64,
 	pub nonce: U256,
 	pub tx_hash: H256,
 }
 
+impl LocalReceipt {
+	pub(crate) fn new_with_tx_hash(tx_hash: H256) -> Self {
+		LocalReceipt { tx_hash, ..Default::default() }
+	}
+}
+
 pub type LocalReceiptQueue = Arc<Mutex<LinkedList<LocalReceipt>>>;
 
-pub fn create_queue() -> LocalReceiptQueue {
+pub fn create_receipt_queue() -> LocalReceiptQueue {
 	Arc::new(Mutex::new(LinkedList::<LocalReceipt>::new()))
 }
 
 pub async fn task_scan(
 	config: &ConfigInstance,
 	msg_sender: &mut MqSender,
-	mut start: U64,
-	_monitor_sender: MonitorSender,
+	mut start: U64
 ) -> KeeperResult<()> {
 	let mut tmp_start_cache = 0.into();
 
@@ -100,16 +109,19 @@ const MAX_LOCAL_RECEIPT_QUEUE: usize = 200;
 
 pub async fn task_submit(
 	config: &ConfigInstance,
-	msg_receiver: &mut MqReceiver,
-	monitor_sender: MonitorSender,
+	msg_queue: (&mut MqSender, &mut MqReceiver),
 	queue: LocalReceiptQueue,
 ) -> std::result::Result<(), (Option<U64>, Error)> {
-	while let Ok(r) = msg_receiver.recv_timeout(Delay::new(Duration::from_secs(1))).await {
+	while let Ok(r) = msg_queue.1.recv_timeout(Delay::new(Duration::from_secs(1))).await {
 		// while let Ok(events) = event_receiver.recv().await {
 		let r = match r {
 			Some(a) => a,
 			None => continue,
 		};
+		// false - first submit
+		// true - resubmit
+		// txs are not handled in the first submit stage, all troubled txs will flow to
+		// the resubmit stage/task and do necessary retries.
 		log::info!("recv msg in task4");
 		// in theory, inputs wont be empty here
 		let inputs = serde_json::from_slice(&*r).map_err(|e| (None, e.into()))?;
@@ -158,7 +170,110 @@ pub async fn task_submit(
 			config,
 			&config.aggregator_contract,
 			config.private_key,
-			config.keeper_address,
+			inputs,
+			// nonce,
+			queue.clone(),
+		)
+		.await;
+
+		if res.is_ok() {
+			let res = res.unwrap();
+			let status =
+				msg_queue.0.send(serde_json::to_vec(&res).map_err(|e| (None, e.into()))?).await;
+
+			match status {
+				Ok(_) => {
+					r.commit().map_err(|e| (None, e.into()))?;
+				},
+				Err(e) => {
+					log::error!(target: MOONBEAM_SUBMIT_LOG_TARGET, "submit_txs error: {:?}", &e);
+				}
+			};
+		}
+	}
+
+	Ok(())
+}
+
+pub async fn task_resubmit(
+	config: &ConfigInstance,
+	msg_receiver: &mut MqReceiver,
+	monitor_sender: MonitorSender,
+	queue: LocalReceiptQueue,
+) -> std::result::Result<(), (Option<U64>, Error)> {
+	while let Ok(r) = msg_receiver.recv_timeout(Delay::new(Duration::from_secs(1))).await {
+		// while let Ok(events) = event_receiver.recv().await {
+		let r = match r {
+			Some(a) => a,
+			None => continue,
+		};
+		// false - first submit
+		// true - resubmit
+		// txs are not handled in the first submit stage, all troubled txs will flow to
+		// the resubmit stage/task and do necessary retries.
+		log::info!("recv msg in task5");
+		// in theory, inputs wont be empty here
+		let inputs = serde_json::from_slice(&*r).map_err(|e| (None, e.into()))?;
+
+		// check queue before all execution process
+		// 1. pop packed hash in the queue.
+		let best = config.moonbeam_client.best_number().await.map_err(|e| (None, e.into()))?;
+		let mut q = queue.lock().await;
+
+		// wait RESUBMIT_INTERVAL secs to avoid resubmit a tx that has been already finished
+		sleep(Duration::from_secs(RESUBMIT_INTERVAL)).await;
+
+		while let Some(item) = q.pop_front() {
+			let mut i = 0;
+			let res = loop {
+				let r = config
+					.moonbeam_client
+					.eth()
+					.transaction(TransactionId::Hash(item.tx_hash))
+					.await;
+
+				if r.is_ok() || i == MAX_RETRY_TIMES {
+					break r
+				}
+				i = i + 1;
+				// todo use a variable to represent 1s
+				sleep(Duration::from_secs(1)).await;
+			};
+
+			// if the tx is included or expired
+			// todo: expiration is not the best way to handle unconfirmed tx, change it later
+			if res.is_ok() {
+				log::info!(
+					target: MOONBEAM_RESUBMIT_LOG_TARGET,
+					"[queue_info] pop item:{:?}",
+					item
+				);
+			} else {
+				// the tx has not be packed in blocks, so we push back front to the queue.
+				log::error!(
+					target: MOONBEAM_RESUBMIT_LOG_TARGET,
+					"[queue_info] pop item with error:{:?}",
+					item
+				);
+			}
+		}
+		// 2. check queue length
+		let len = q.len();
+		// if current queue len is more than limit, for now, we just can return the Err for alert..
+		// we may need to restart the node to re-send related transaction based of local receipt
+		if len > MAX_LOCAL_RECEIPT_QUEUE {
+			return Err((
+				None,
+				Error::ExceedQueueLen(len, q.front().expect("nothing").send_at.as_u64()),
+			))
+		}
+		drop(q);
+
+		// enter submit process.
+		let res = super::resubmit_txs(
+			config,
+			&config.aggregator_contract,
+			config.private_key_optional,
 			inputs,
 			// nonce,
 			queue.clone(),
@@ -176,7 +291,7 @@ pub async fn task_submit(
 						MOONBEAM_SUBMIT_LOG_TARGET.to_string(),
 						e.0,
 						&e.1.into(),
-						config.keeper_address,
+						config.name.to_string(),
 					);
 					monitor_sender.send(monitor_metrics).await;
 				}

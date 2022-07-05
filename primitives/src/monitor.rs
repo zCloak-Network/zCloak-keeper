@@ -24,7 +24,7 @@ pub struct MonitorMetrics {
 	target: String,
 	block_number: Option<U64>,
 	error_msg: String,
-	keeper_address: Address,
+	keeper_name: String,
 }
 
 pub type MonitorSender = Sender<MonitorMetrics>;
@@ -37,10 +37,10 @@ impl MonitorMetrics {
 		target: String,
 		block_number: Option<U64>,
 		error: &super::Error,
-		keeper_address: Address,
+		keeper_name: String,
 	) -> Self {
 		let error_msg = format!("{:?}", error);
-		Self { target, block_number, error_msg, keeper_address }
+		Self { target, block_number, error_msg, keeper_name }
 	}
 
 	pub fn monitor_keywords(&self) -> KeywordReplace {
@@ -49,7 +49,7 @@ impl MonitorMetrics {
 		map.insert("level".to_owned(), self.target.clone());
 		map.insert("BlockNumber".to_owned(), self.get_block());
 		map.insert("error".to_owned(), self.error_msg.clone());
-		map.insert("KeeperAddress".to_owned(), self.keeper_address.to_string());
+		map.insert("KeeperName".to_owned(), self.keeper_name.clone());
 		map
 	}
 
@@ -104,8 +104,7 @@ mod tests {
 			target: MOONBEAM_SCAN_LOG_TARGET.to_string(),
 			block_number: Some(32.into()),
 			error_msg: "Test error message".to_string(),
-			keeper_address: Address::from_str("9dD21AdF685CBf76bD3288AEdC5A62b9AddBcd8d")
-				.expect("Wrong address format"),
+			keeper_name: "9dD21AdF685CBf76bD3288AEdC5A62b9AddBcd8d".to_owned()
 		}
 	}
 	#[test]

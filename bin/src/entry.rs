@@ -13,6 +13,7 @@ use keeper_primitives::{
 	moonbeam::{Error as MoonbeamError, MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET},
 	Config, ConfigInstance, Error, IpfsClient, Key, KiltClient, MoonbeamClient, SecretKeyRef, U64,
 };
+use keeper_primitives::moonbeam::MOONBEAM_RESUBMIT_LOG_TARGET;
 
 use crate::command::StartOptions;
 
@@ -27,6 +28,10 @@ async fn sleep() {
 pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error> {
 	// load config
 	let start: U64 = start_options.start_number.unwrap_or_default().into();
+	// todo: give it a random name
+	let keeper_name = start_options.clone().name.unwrap_or_default().into();
+	log::info!("Starting Keeper[{}]", &keeper_name);
+
 	let channel_files = start_options.channel_files()?;
 	let config_path = start_options.config.ok_or::<Error>(
 		ConfigError::OtherError("Config File need to be specific".to_owned()).into(),
@@ -44,13 +49,17 @@ pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error
 		moonbeam_client.aggregator_contract(&config.moonbeam.write_contract)?;
 
 	let moonbeam_worker_pri = secp256k1::SecretKey::from_str(&config.moonbeam.private_key)?;
-	let key_ref = SecretKeyRef::new(&moonbeam_worker_pri);
-	let keeper_address = key_ref.address();
+	let moonbeam_worker_pri_optional = if config.moonbeam.private_key_optional.is_some() {
+		Some(secp256k1::SecretKey::from_str(&config.moonbeam.private_key_optional.unwrap()).expect("Wrong optional secret key"))
+	} else {
+		None
+	};
 
 	#[cfg(feature = "monitor")]
 	let bot_url = config.monitor.bot_url;
 
 	let config_instance = ConfigInstance {
+		name: keeper_name,
 		channel_files,
 		moonbeam_client,
 		ipfs_client,
@@ -58,7 +67,7 @@ pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error
 		proof_contract,
 		aggregator_contract,
 		private_key: moonbeam_worker_pri,
-		keeper_address,
+		private_key_optional: moonbeam_worker_pri_optional,
 		#[cfg(feature = "monitor")]
 		bot_url,
 	};
@@ -93,12 +102,15 @@ pub async fn run(
 		.expect("fail to unlock verify2attestation channel");
 	recovery::unlock_queue(&config_channels.attest_to_submit)
 		.expect("fail to unlock attestation2submit channel");
+	recovery::unlock_queue(&config_channels.resubmit).expect("fail to unlock resubmit channel");
 
 	let (mut event_sender, mut event_receiver) = channel(&config_channels.event_to_ipfs).unwrap();
 	let (mut attest_sender, mut attest_receiver) =
 		channel(&config_channels.verify_to_attest).unwrap();
 	let (mut submit_sender, mut submit_receiver) =
 		channel(&config_channels.attest_to_submit).unwrap();
+	let (mut re_submit_sender, mut re_submit_receiver) =
+		channel(&config_channels.resubmit).unwrap();
 
 	// alert message sending
 	let (monitor_sender, mut monitor_receiver) =
@@ -116,6 +128,7 @@ pub async fn run(
 	let monitor_sender2 = monitor_sender.clone();
 	let monitor_sender3 = monitor_sender.clone();
 	let monitor_sender4 = monitor_sender.clone();
+	let monitor_sender5 = monitor_sender.clone();
 
 	// 1. scan moonbeam proof event, and push them to event channel
 	let task_scan = tokio::spawn(async move {
@@ -125,7 +138,7 @@ pub async fn run(
 			log::info!("Start Task Scan...[{}]", count);
 			count += 1;
 			let res =
-				moonbeam::task_scan(&config, &mut event_sender, start, monitor_sender1.clone())
+				moonbeam::task_scan(&config, &mut event_sender, start)
 					.await;
 			// handle error
 			if let Err(e) = res {
@@ -139,7 +152,7 @@ pub async fn run(
 						MOONBEAM_SCAN_LOG_TARGET.to_string(),
 						e.0,
 						&e.1,
-						config.keeper_address,
+						config.name.clone(),
 					);
 					monitor_sender1.send(monitor_metrics).await;
 				}
@@ -179,7 +192,7 @@ pub async fn run(
 						IPFS_LOG_TARGET.to_string(),
 						e.0,
 						&e.1,
-						config.keeper_address,
+						config.name.clone(),
 					);
 					monitor_sender2.send(monitor_metrics).await;
 				}
@@ -215,7 +228,7 @@ pub async fn run(
 						KILT_LOG_TARGET.to_string(),
 						e.0,
 						&e.1,
-						config.keeper_address,
+						config.name.clone(),
 					);
 					monitor_sender3.send(monitor_metrics).await;
 				}
@@ -232,16 +245,15 @@ pub async fn run(
 		}
 	});
 
-	let queue = moonbeam::create_queue();
 	// 4. submit tx
-	let task_submit_tx = tokio::spawn(async move {
+	let task_submit_txs = tokio::spawn(async move {
 		let config = config4.read().await;
+		let queue = moonbeam::create_receipt_queue();
 
 		loop {
 			let res = moonbeam::task_submit(
 				&config,
-				&mut submit_receiver,
-				monitor_sender4.clone(),
+				(&mut re_submit_sender, &mut submit_receiver),
 				queue.clone(),
 			)
 			.await;
@@ -257,9 +269,53 @@ pub async fn run(
 						MOONBEAM_SUBMIT_LOG_TARGET.to_string(),
 						e.0,
 						&e.1,
-						config.keeper_address,
+						config.name.clone(),
 					);
 					monitor_sender4.send(monitor_metrics).await;
+				}
+
+				// todo: this bracket code no need
+				match e.1 {
+					Error::MoonbeamError(MoonbeamError::Web3Error(_)) |
+					Error::MoonbeamError(MoonbeamError::Web3ContractError(_)) => {
+						// todo need retry
+						sleep().await;
+						continue
+					},
+					_ => return e,
+				};
+			}
+		}
+	});
+
+	// task 5: resubmit
+	let task_resubmit_txs = tokio::spawn(async move {
+		let config = config5.read().await;
+		let queue = moonbeam::create_receipt_queue();
+
+		loop {
+			let res = moonbeam::task_resubmit(
+				&config,
+				&mut re_submit_receiver,
+				monitor_sender5.clone(),
+				queue.clone(),
+			)
+			.await;
+			if let Err(e) = res {
+				log::error!(
+					target: MOONBEAM_SUBMIT_LOG_TARGET,
+					"[outer error] task submit error, {:?}",
+					e
+				);
+
+				if cfg!(feature = "monitor") {
+					let monitor_metrics = MonitorMetrics::new(
+						MOONBEAM_RESUBMIT_LOG_TARGET.to_string(),
+						e.0,
+						&e.1,
+						config.name.clone(),
+					);
+					monitor_sender5.send(monitor_metrics).await;
 				}
 
 				// todo: this bracket code no need
@@ -295,7 +351,8 @@ pub async fn run(
 		task_scan,
 		task_ipfs_verify,
 		task_kilt_attest,
-		task_submit_tx,
+		task_submit_txs,
+		task_resubmit_txs,
 		task_monitor_handle
 	)?;
 	Ok(())

@@ -12,11 +12,13 @@ pub struct ChannelFiles {
 	pub event_to_ipfs: PathBuf,
 	pub verify_to_attest: PathBuf,
 	pub attest_to_submit: PathBuf,
+	pub resubmit: PathBuf,
 }
 
 // todo move
 #[derive(Clone, Debug)]
 pub struct ConfigInstance {
+	pub name: String,
 	pub channel_files: ChannelFiles,
 	pub moonbeam_client: MoonbeamClient,
 	pub ipfs_client: IpfsClient,
@@ -24,7 +26,7 @@ pub struct ConfigInstance {
 	pub proof_contract: Contract<Http>,
 	pub aggregator_contract: Contract<Http>,
 	pub private_key: SecretKey,
-	pub keeper_address: Address,
+	pub private_key_optional: Option<SecretKey>,
 	#[cfg(feature = "monitor")]
 	pub bot_url: String,
 }
