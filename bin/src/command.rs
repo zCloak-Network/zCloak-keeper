@@ -21,7 +21,6 @@ pub enum Opt {
 
 #[derive(Debug, Clone, StructOpt)]
 pub struct StartOptions {
-
 	/// The keeper's nick name
 	#[structopt(short, long)]
 	pub name: Option<String>,

@@ -26,6 +26,7 @@ pub struct Deposit<Account, Balance> {
 pub struct AttestationDetails<Hash: Encode + Clone, Account, Balance> {
 	pub ctype_hash: Hash,
 	pub attester: Account,
+	// pub delegation_id: Option<Hash>,
 	pub authorization_id: Option<AuthorizationId<Hash>>,
 	pub revoked: bool,
 	pub deposit: Deposit<Account, Balance>,

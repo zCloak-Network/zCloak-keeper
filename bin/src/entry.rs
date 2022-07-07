@@ -10,10 +10,13 @@ use keeper_primitives::{
 	kilt::{Error as KiltError, KILT_LOG_TARGET},
 	monitor,
 	monitor::MonitorMetrics,
-	moonbeam::{Error as MoonbeamError, MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET},
+	moonbeam::{
+		Error as MoonbeamError, MOONBEAM_RESUBMIT_LOG_TARGET, MOONBEAM_SCAN_LOG_TARGET,
+		MOONBEAM_SUBMIT_LOG_TARGET,
+	},
 	Config, ConfigInstance, Error, IpfsClient, Key, KiltClient, MoonbeamClient, SecretKeyRef, U64,
 };
-use keeper_primitives::moonbeam::MOONBEAM_RESUBMIT_LOG_TARGET;
+use moonbeam::LocalSentTx;
 
 use crate::command::StartOptions;
 
@@ -29,13 +32,15 @@ pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error
 	// load config
 	let start: U64 = start_options.start_number.unwrap_or_default().into();
 	// todo: give it a random name
-	let keeper_name = start_options.clone().name.unwrap_or_default().into();
+	let keeper_name = start_options.clone().name.unwrap_or_default();
 	log::info!("Starting Keeper[{}]", &keeper_name);
 
 	let channel_files = start_options.channel_files()?;
-	let config_path = start_options.config.ok_or::<Error>(
-		ConfigError::OtherError("Config File need to be specific".to_owned()).into(),
-	)?;
+	let config_path = start_options.config.ok_or_else(|| {
+		Error::ConfigLoadError(ConfigError::OtherError(
+			"Config File need to be specific".to_owned(),
+		))
+	})?;
 	let config = Config::load_from_json(&config_path)?;
 
 	log::info!("[Config] load successfully!");
@@ -50,7 +55,10 @@ pub async fn start(start_options: StartOptions) -> std::result::Result<(), Error
 
 	let moonbeam_worker_pri = secp256k1::SecretKey::from_str(&config.moonbeam.private_key)?;
 	let moonbeam_worker_pri_optional = if config.moonbeam.private_key_optional.is_some() {
-		Some(secp256k1::SecretKey::from_str(&config.moonbeam.private_key_optional.unwrap()).expect("Wrong optional secret key"))
+		Some(
+			secp256k1::SecretKey::from_str(&config.moonbeam.private_key_optional.unwrap())
+				.expect("Wrong optional secret key"),
+		)
 	} else {
 		None
 	};
@@ -137,9 +145,7 @@ pub async fn run(
 		loop {
 			log::info!("Start Task Scan...[{}]", count);
 			count += 1;
-			let res =
-				moonbeam::task_scan(&config, &mut event_sender, start)
-					.await;
+			let res = moonbeam::task_scan(&config, &mut event_sender, start).await;
 			// handle error
 			if let Err(e) = res {
 				log::error!(
@@ -148,13 +154,12 @@ pub async fn run(
 					e
 				);
 				if cfg!(feature = "monitor") {
-					let monitor_metrics = MonitorMetrics::new(
+					let monitor_metrics = MonitorMetrics::new_with_target_and_error(
 						MOONBEAM_SCAN_LOG_TARGET.to_string(),
-						e.0,
-						&e.1,
+						&e,
 						config.name.clone(),
 					);
-					monitor_sender1.send(monitor_metrics).await;
+					let _res = monitor_sender1.send(monitor_metrics).await;
 				}
 
 				match e.1 {
@@ -188,13 +193,18 @@ pub async fn run(
 				);
 
 				if cfg!(feature = "monitor") {
-					let monitor_metrics = MonitorMetrics::new(
+					// let monitor_metrics = MonitorMetrics::new(
+					// 	IPFS_LOG_TARGET.to_string(),
+					// 	e.0,
+					// 	&e.1,
+					// 	config.name.clone(),
+					// );
+					let monitor_metrics = MonitorMetrics::new_with_target_and_error(
 						IPFS_LOG_TARGET.to_string(),
-						e.0,
-						&e.1,
+						&e,
 						config.name.clone(),
 					);
-					monitor_sender2.send(monitor_metrics).await;
+					let _res = monitor_sender2.send(monitor_metrics).await;
 				}
 				// start refetching ipfs proof if connection error encountered
 				match e.1 {
@@ -224,13 +234,12 @@ pub async fn run(
 					e
 				);
 				if cfg!(feature = "monitor") {
-					let monitor_metrics = MonitorMetrics::new(
+					let monitor_metrics = MonitorMetrics::new_with_target_and_error(
 						KILT_LOG_TARGET.to_string(),
-						e.0,
-						&e.1,
+						&e,
 						config.name.clone(),
 					);
-					monitor_sender3.send(monitor_metrics).await;
+					let _res = monitor_sender3.send(monitor_metrics).await;
 				}
 
 				match e.1 {
@@ -248,13 +257,13 @@ pub async fn run(
 	// 4. submit tx
 	let task_submit_txs = tokio::spawn(async move {
 		let config = config4.read().await;
-		let queue = moonbeam::create_receipt_queue();
+		let mut last_sent_tx = LocalSentTx::default();
 
 		loop {
 			let res = moonbeam::task_submit(
 				&config,
 				(&mut re_submit_sender, &mut submit_receiver),
-				queue.clone(),
+				&mut last_sent_tx,
 			)
 			.await;
 			if let Err(e) = res {
@@ -265,13 +274,12 @@ pub async fn run(
 				);
 
 				if cfg!(feature = "monitor") {
-					let monitor_metrics = MonitorMetrics::new(
+					let monitor_metrics = MonitorMetrics::new_with_target_and_error(
 						MOONBEAM_SUBMIT_LOG_TARGET.to_string(),
-						e.0,
-						&e.1,
+						&e,
 						config.name.clone(),
 					);
-					monitor_sender4.send(monitor_metrics).await;
+					let _res = monitor_sender4.send(monitor_metrics).await;
 				}
 
 				// todo: this bracket code no need
@@ -291,9 +299,11 @@ pub async fn run(
 	// task 5: resubmit
 	let task_resubmit_txs = tokio::spawn(async move {
 		let config = config5.read().await;
-		let queue = moonbeam::create_receipt_queue();
+		let queue = moonbeam::create_local_sent_queue();
 
 		loop {
+			// connection error will cause re-enter
+			// others will throw
 			let res = moonbeam::task_resubmit(
 				&config,
 				&mut re_submit_receiver,
@@ -309,10 +319,9 @@ pub async fn run(
 				);
 
 				if cfg!(feature = "monitor") {
-					let monitor_metrics = MonitorMetrics::new(
+					let monitor_metrics = MonitorMetrics::new_with_target_and_error(
 						MOONBEAM_RESUBMIT_LOG_TARGET.to_string(),
-						e.0,
-						&e.1,
+						&e,
 						config.name.clone(),
 					);
 					monitor_sender5.send(monitor_metrics).await;

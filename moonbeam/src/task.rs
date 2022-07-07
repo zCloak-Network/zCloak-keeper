@@ -19,29 +19,29 @@ use web3::types::{TransactionId, H256, U256};
 
 use super::KeeperResult;
 
-#[derive(Default, Debug)]
-pub struct LocalReceipt {
-	pub send_at: U64,
-	pub nonce: U256,
+#[derive(Default, Debug, Clone)]
+pub struct LocalSentTx {
+	pub send_at: Option<U64>,
+	pub nonce: Option<U256>,
 	pub tx_hash: H256,
 }
 
-impl LocalReceipt {
+impl LocalSentTx {
 	pub(crate) fn new_with_tx_hash(tx_hash: H256) -> Self {
-		LocalReceipt { tx_hash, ..Default::default() }
+		LocalSentTx { tx_hash, ..Default::default() }
 	}
 }
 
-pub type LocalReceiptQueue = Arc<Mutex<LinkedList<LocalReceipt>>>;
+pub type LocalSentQueue = Arc<Mutex<LinkedList<LocalSentTx>>>;
 
-pub fn create_receipt_queue() -> LocalReceiptQueue {
-	Arc::new(Mutex::new(LinkedList::<LocalReceipt>::new()))
+pub fn create_local_sent_queue() -> LocalSentQueue {
+	Arc::new(Mutex::new(LinkedList::<LocalSentTx>::new()))
 }
 
 pub async fn task_scan(
 	config: &ConfigInstance,
 	msg_sender: &mut MqSender,
-	mut start: U64
+	mut start: U64,
 ) -> KeeperResult<()> {
 	let mut tmp_start_cache = 0.into();
 
@@ -110,60 +110,18 @@ const MAX_LOCAL_RECEIPT_QUEUE: usize = 200;
 pub async fn task_submit(
 	config: &ConfigInstance,
 	msg_queue: (&mut MqSender, &mut MqReceiver),
-	queue: LocalReceiptQueue,
+	last_sent_tx: &mut LocalSentTx,
 ) -> std::result::Result<(), (Option<U64>, Error)> {
-	while let Ok(r) = msg_queue.1.recv_timeout(Delay::new(Duration::from_secs(1))).await {
+	while let Ok(r) = msg_queue.1.recv_timeout(Delay::new(Duration::from_secs(2))).await {
 		// while let Ok(events) = event_receiver.recv().await {
 		let r = match r {
 			Some(a) => a,
 			None => continue,
 		};
-		// false - first submit
-		// true - resubmit
-		// txs are not handled in the first submit stage, all troubled txs will flow to
-		// the resubmit stage/task and do necessary retries.
+
 		log::info!("recv msg in task4");
 		// in theory, inputs wont be empty here
 		let inputs = serde_json::from_slice(&*r).map_err(|e| (None, e.into()))?;
-
-		// check queue before all execution process
-		// 1. pop packed hash in the queue.
-		let best = config.moonbeam_client.best_number().await.map_err(|e| (None, e.into()))?;
-		let mut q = queue.lock().await;
-		while let Some(item) = q.pop_front() {
-			let r = config
-				.moonbeam_client
-				.eth()
-				.transaction(TransactionId::Hash(item.tx_hash))
-				.await
-				.map_err(|e| (None, Error::MoonbeamError(e.into())))?;
-			// if the tx is included or expired
-			// todo: expiration is not the best way to handle unconfirmed tx, change it later
-			if r.is_some() {
-				log::info!(target: MOONBEAM_SUBMIT_LOG_TARGET, "[queue_info] pop item:{:?}", item);
-			} else if best - item.send_at > QUEUE_EXPIRE_DURATION.into() {
-				log::error!(
-					target: MOONBEAM_SUBMIT_LOG_TARGET,
-					"[queue_expiration pop item {:?}",
-					item
-				);
-			} else {
-				// the tx has not be packed in blocks, so we push back front to the queue.
-				q.push_front(item);
-				break
-			}
-		}
-		// 2. check queue length
-		let len = q.len();
-		// if current queue len is more than limit, for now, we just can return the Err for alert..
-		// we may need to restart the node to re-send related transaction based of local receipt
-		if len > MAX_LOCAL_RECEIPT_QUEUE {
-			return Err((
-				None,
-				Error::ExceedQueueLen(len, q.front().expect("nothing").send_at.as_u64()),
-			))
-		}
-		drop(q);
 
 		// enter submit process.
 		let res = super::submit_txs(
@@ -172,10 +130,11 @@ pub async fn task_submit(
 			config.private_key,
 			inputs,
 			// nonce,
-			queue.clone(),
+			last_sent_tx,
 		)
 		.await;
 
+		// res must be Ok
 		if res.is_ok() {
 			let res = res.unwrap();
 			let status =
@@ -187,7 +146,7 @@ pub async fn task_submit(
 				},
 				Err(e) => {
 					log::error!(target: MOONBEAM_SUBMIT_LOG_TARGET, "submit_txs error: {:?}", &e);
-				}
+				},
 			};
 		}
 	}
@@ -199,7 +158,7 @@ pub async fn task_resubmit(
 	config: &ConfigInstance,
 	msg_receiver: &mut MqReceiver,
 	monitor_sender: MonitorSender,
-	queue: LocalReceiptQueue,
+	queue: LocalSentQueue,
 ) -> std::result::Result<(), (Option<U64>, Error)> {
 	while let Ok(r) = msg_receiver.recv_timeout(Delay::new(Duration::from_secs(1))).await {
 		// while let Ok(events) = event_receiver.recv().await {
@@ -217,7 +176,6 @@ pub async fn task_resubmit(
 
 		// check queue before all execution process
 		// 1. pop packed hash in the queue.
-		let best = config.moonbeam_client.best_number().await.map_err(|e| (None, e.into()))?;
 		let mut q = queue.lock().await;
 
 		// wait RESUBMIT_INTERVAL secs to avoid resubmit a tx that has been already finished
@@ -262,14 +220,12 @@ pub async fn task_resubmit(
 		// if current queue len is more than limit, for now, we just can return the Err for alert..
 		// we may need to restart the node to re-send related transaction based of local receipt
 		if len > MAX_LOCAL_RECEIPT_QUEUE {
-			return Err((
-				None,
-				Error::ExceedQueueLen(len, q.front().expect("nothing").send_at.as_u64()),
-			))
+			return Err((None, Error::ExceedQueueLen(len, q.front().expect("nothing").send_at)))
 		}
 		drop(q);
 
 		// enter submit process.
+		// re-consume the same data if error thrown
 		let res = super::resubmit_txs(
 			config,
 			&config.aggregator_contract,

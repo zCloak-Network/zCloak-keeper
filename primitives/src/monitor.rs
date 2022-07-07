@@ -43,6 +43,14 @@ impl MonitorMetrics {
 		Self { target, block_number, error_msg, keeper_name }
 	}
 
+	pub fn new_with_target_and_error(
+		target: String,
+		error_with_number: &(Option<U64>, super::Error),
+		name: String,
+	) -> Self {
+		Self::new(target, error_with_number.0, &error_with_number.1, name)
+	}
+
 	pub fn monitor_keywords(&self) -> KeywordReplace {
 		let mut map = HashMap::new();
 		// todo: config key
@@ -104,7 +112,7 @@ mod tests {
 			target: MOONBEAM_SCAN_LOG_TARGET.to_string(),
 			block_number: Some(32.into()),
 			error_msg: "Test error message".to_string(),
-			keeper_name: "9dD21AdF685CBf76bD3288AEdC5A62b9AddBcd8d".to_owned()
+			keeper_name: "9dD21AdF685CBf76bD3288AEdC5A62b9AddBcd8d".to_owned(),
 		}
 	}
 	#[test]

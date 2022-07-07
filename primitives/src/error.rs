@@ -1,3 +1,5 @@
+use web3::types::U64;
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
 	#[error("Config load Error, err: {0}")]
@@ -31,7 +33,7 @@ pub enum Error {
 	TaskJoinError(#[from] tokio::task::JoinError),
 
 	#[error(
-		"Can not handle local receipt queue item, len: {0}, front item send_at block number:{1}."
+		"Can not handle local receipt queue item, len: {0}, front item send_at block number:{:1}."
 	)]
-	ExceedQueueLen(usize, u64),
+	ExceedQueueLen(usize, Option<U64>),
 }
