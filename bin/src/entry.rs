@@ -324,7 +324,7 @@ pub async fn run(
 						&e,
 						config.name.clone(),
 					);
-					monitor_sender5.send(monitor_metrics).await;
+					let _res = monitor_sender5.send(monitor_metrics).await;
 				}
 
 				// todo: this bracket code no need

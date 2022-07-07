@@ -280,17 +280,17 @@ pub async fn resubmit_txs(
 				);
 
 				let last_sent_tx = queue_guard.back().cloned().unwrap_or_default();
-				// pick a nonce, construct raw tx and send it onchain
-				// todo: throw?
-				let nonce = latest_nonce(&last_sent_tx, config, keeper_address).await;
 				// tx_hash here must be a Ok value
-				let tx_hash = loop {
+				let (tx_hash, nonce) = loop {
+					// pick a nonce, construct raw tx and send it onchain
+					// todo: throw?
+					let nonce = latest_nonce(&last_sent_tx, config, keeper_address).await;
 					let hash =
 						construct_tx_and_send(contract, keeper_pri_optional, nonce, params.clone())
 							.await;
 
 					if hash.is_ok() {
-						break hash
+						break (hash, nonce)
 					}
 
 					// todo: make this configurable
