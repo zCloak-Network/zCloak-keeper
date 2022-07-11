@@ -2,40 +2,63 @@ use crate::{TxHashAndInfo, U64};
 
 use std::{collections::linked_list::LinkedList, sync::Arc};
 
-use keeper_primitives::{
-	monitor::{MonitorMetrics, MonitorSender},
-	moonbeam::{
-		MAX_RETRY_TIMES, MOONBEAM_RESUBMIT_LOG_TARGET, MOONBEAM_SCAN_LOG_TARGET,
-		MOONBEAM_SUBMIT_LOG_TARGET, QUEUE_EXPIRE_DURATION, RESUBMIT_INTERVAL,
-	},
-	ConfigInstance, Delay, Error, JsonParse, MqReceiver, MqSender, VerifyResult,
-	CHANNEL_LOG_TARGET,
-};
+use keeper_primitives::{monitor::{MonitorMetrics, MonitorSender}, moonbeam::{
+	MAX_RETRY_TIMES, MOONBEAM_RESUBMIT_LOG_TARGET, MOONBEAM_SCAN_LOG_TARGET,
+	MOONBEAM_SUBMIT_LOG_TARGET, QUEUE_EXPIRE_DURATION, RESUBMIT_INTERVAL,
+}, ConfigInstance, Delay, Error, JsonParse, MqReceiver, MqSender, VerifyResult, CHANNEL_LOG_TARGET, Web3Options};
 use tokio::{
 	sync::Mutex,
 	time::{sleep, Duration},
 };
 use web3::types::{TransactionId, H256, U256};
+use keeper_primitives::{Serialize, Deserialize};
 
 use super::KeeperResult;
 
+// fat tx contains the necessary info for constructing new tx
 #[derive(Default, Debug, Clone)]
-pub struct LocalSentTx {
-	pub send_at: Option<U64>,
+#[derive(Serialize, Deserialize)]
+pub struct FatTx {
+	pub send_at: U64,
+	pub gas_price: U256,
 	pub nonce: Option<U256>,
-	pub tx_hash: H256,
+	pub tx: TxHashAndInfo,
 }
 
-impl LocalSentTx {
-	pub(crate) fn new_with_tx_hash(tx_hash: H256) -> Self {
-		LocalSentTx { tx_hash, ..Default::default() }
+impl FatTx {
+	pub(crate) fn new_with_tx_info(tx: TxHashAndInfo) -> Self {
+		FatTx { tx, ..Default::default() }
 	}
 }
 
-pub type LocalSentQueue = Arc<Mutex<LinkedList<LocalSentTx>>>;
+#[derive(Default, Debug, Clone)]
+pub struct RetryTx {
+	pub fat_tx: FatTx,
+	pub retry_times: u8
+}
 
-pub fn create_local_sent_queue() -> LocalSentQueue {
-	Arc::new(Mutex::new(LinkedList::<LocalSentTx>::new()))
+impl RetryTx {
+
+	pub(crate) fn tx_info(&self) -> TxHashAndInfo {
+		self.fat_tx.tx.clone()
+	}
+
+	// clear retry_times, update nonce, price, send_at and tx_hash
+	pub(crate) fn update_after_resubmit(&mut self, nonce: U256, gas_price: U256, send_at: U64, tx_hash: Option<H256>) {
+		self.retry_times = 0;
+		self.fat_tx.tx.0 = tx_hash;
+		self.fat_tx.nonce = Some(nonce);
+		self.fat_tx.gas_price = gas_price;
+		self.fat_tx.send_at = send_at;
+	}
+
+
+}
+
+pub type RetryQueue = Arc<Mutex<LinkedList<RetryTx>>>;
+
+pub fn create_retry_queue() -> RetryQueue {
+	Arc::new(Mutex::new(LinkedList::<RetryTx>::new()))
 }
 
 pub async fn task_scan(
@@ -110,7 +133,7 @@ const MAX_LOCAL_RECEIPT_QUEUE: usize = 200;
 pub async fn task_submit(
 	config: &ConfigInstance,
 	msg_queue: (&mut MqSender, &mut MqReceiver),
-	last_sent_tx: &mut LocalSentTx,
+	last_sent_tx: &mut FatTx,
 ) -> std::result::Result<(), (Option<U64>, Error)> {
 	while let Ok(r) = msg_queue.1.recv_timeout(Delay::new(Duration::from_secs(2))).await {
 		// while let Ok(events) = event_receiver.recv().await {
@@ -158,86 +181,73 @@ pub async fn task_resubmit(
 	config: &ConfigInstance,
 	msg_receiver: &mut MqReceiver,
 	monitor_sender: MonitorSender,
-	queue: LocalSentQueue,
-) -> std::result::Result<(), (Option<U64>, Error)> {
+	queue: RetryQueue,
+	local_last_sent_at: &mut U64,
+) -> Result<(), (Option<U64>, Error)> {
 	while let Ok(r) = msg_receiver.recv_timeout(Delay::new(Duration::from_secs(1))).await {
-		// while let Ok(events) = event_receiver.recv().await {
 		let r = match r {
 			Some(a) => a,
 			None => continue,
 		};
-		// false - first submit
-		// true - resubmit
-		// txs are not handled in the first submit stage, all troubled txs will flow to
-		// the resubmit stage/task and do necessary retries.
-		log::info!("recv msg in task5");
-		// in theory, inputs wont be empty here
-		let inputs = serde_json::from_slice(&*r).map_err(|e| (None, e.into()))?;
 
-		// check queue before all execution process
-		// 1. pop packed hash in the queue.
 		let mut q = queue.lock().await;
 
 		// wait RESUBMIT_INTERVAL secs to avoid resubmit a tx that has been already finished
 		sleep(Duration::from_secs(RESUBMIT_INTERVAL)).await;
 
-		while let Some(item) = q.pop_front() {
-			let mut i = 0;
-			let res = loop {
-				let r = config
-					.moonbeam_client
-					.eth()
-					.transaction(TransactionId::Hash(item.tx_hash))
-					.await;
+		// push the latest sent transactions to the back of the queue
+		if r.len() > 0 {
+			log::info!("recv msg in task5");
+			// in theory, inputs wont be empty here
+			let inputs: Vec<FatTx> = serde_json::from_slice(&*r).map_err(|e| (None, e.into()))?;
 
-				if r.is_ok() || i == MAX_RETRY_TIMES {
-					break r
+			// must be true because r is not empty and deserializing succeeds
+			if let Some(last) = inputs.last() {
+				let last_sent_at_from_outer = last.send_at;
+				// if last_sent_from_outer <= local_last_sent, then skip updating the queue
+				// because `resubmit_txs` will throw error and re-consume the data from the channel
+				if &last_sent_at_from_outer > local_last_sent_at {
+					for tx_info in inputs {
+						// discard the option and sent_at received from the last task
+						// because task resubmit use a new private key
+						q.push_back( RetryTx { fat_tx: FatTx::new_with_tx_info(tx_info.tx), ..Default::default()});
+						*local_last_sent_at = tx_info.send_at;
+					}
 				}
-				i = i + 1;
-				// todo use a variable to represent 1s
-				sleep(Duration::from_secs(1)).await;
-			};
-
-			// if the tx is included or expired
-			// todo: expiration is not the best way to handle unconfirmed tx, change it later
-			if res.is_ok() {
-				log::info!(
-					target: MOONBEAM_RESUBMIT_LOG_TARGET,
-					"[queue_info] pop item:{:?}",
-					item
-				);
-			} else {
-				// the tx has not be packed in blocks, so we push back front to the queue.
-				log::error!(
-					target: MOONBEAM_RESUBMIT_LOG_TARGET,
-					"[queue_info] pop item with error:{:?}",
-					item
-				);
 			}
-		}
-		// 2. check queue length
-		let len = q.len();
-		// if current queue len is more than limit, for now, we just can return the Err for alert..
-		// we may need to restart the node to re-send related transaction based of local receipt
-		if len > MAX_LOCAL_RECEIPT_QUEUE {
-			return Err((None, Error::ExceedQueueLen(len, q.front().expect("nothing").send_at)))
-		}
-		drop(q);
 
-		// enter submit process.
-		// re-consume the same data if error thrown
+			log::debug!(
+			target: MOONBEAM_RESUBMIT_LOG_TARGET,
+			"[queue_info] queue detail:{:}",
+			{
+				use std::fmt::Write;
+				let mut s = String::new();
+				for i in q.iter() {
+					write!(&mut s, "|{:?}", i).expect("fmt must be valid.");
+				}
+				s
+			}
+		);
+
+			drop(q);
+		};
+
+		// enter resubmit process.
+		// will consume the queue from the front
+		// will throw error if:
+		// - updating nonce fails
+		// - updating gas price fails
 		let res = super::resubmit_txs(
 			config,
 			&config.aggregator_contract,
 			config.private_key_optional,
-			inputs,
-			// nonce,
-			queue.clone(),
-		)
-		.await;
+			queue.clone()
+
+		).await;
 
 		match res {
 			Ok(_) => {
+				// todo: FIX IT.
 				r.commit().map_err(|e| (None, e.into()))?;
 			},
 			Err(e) => {

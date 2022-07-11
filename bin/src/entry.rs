@@ -16,7 +16,7 @@ use keeper_primitives::{
 	},
 	Config, ConfigInstance, Error, IpfsClient, Key, KiltClient, MoonbeamClient, SecretKeyRef, U64,
 };
-use moonbeam::LocalSentTx;
+use moonbeam::FatTx;
 
 use crate::command::StartOptions;
 
@@ -257,7 +257,7 @@ pub async fn run(
 	// 4. submit tx
 	let task_submit_txs = tokio::spawn(async move {
 		let config = config4.read().await;
-		let mut last_sent_tx = LocalSentTx::default();
+		let mut last_sent_tx = FatTx::default();
 
 		loop {
 			let res = moonbeam::task_submit(
@@ -299,7 +299,8 @@ pub async fn run(
 	// task 5: resubmit
 	let task_resubmit_txs = tokio::spawn(async move {
 		let config = config5.read().await;
-		let queue = moonbeam::create_local_sent_queue();
+		let queue = moonbeam::create_retry_queue();
+		let mut last_sent_at = U64::default();
 
 		loop {
 			// connection error will cause re-enter
@@ -309,6 +310,7 @@ pub async fn run(
 				&mut re_submit_receiver,
 				monitor_sender5.clone(),
 				queue.clone(),
+				&mut last_sent_at
 			)
 			.await;
 			if let Err(e) = res {

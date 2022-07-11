@@ -6,6 +6,7 @@ pub use sp_core::{
 	Bytes, H256 as Hash,
 };
 use std::default::Default;
+use sp_core::storage::well_known_keys::is_child_storage_key;
 use web3::{
 	contract::{tokens::Detokenize, Error as ContractError},
 	ethabi::Token,
@@ -27,6 +28,7 @@ pub use moonbeam::{MoonbeamClient, MoonbeamConfig};
 pub use traits::JsonParse;
 
 use crate::kilt::Attestation;
+use crate::moonbeam::Params;
 
 pub mod config;
 pub mod error;
@@ -197,6 +199,11 @@ impl VerifyResult {
 		} else {
 			Err(())
 		}
+	}
+
+	// todo: make params a type
+	pub fn get_submit_params(&self) -> Params {
+		(self.data_owner, self.request_hash, self.c_type, self.root_hash, self.is_passed, self.attester, self.calc_output.to_vec())
 	}
 }
 

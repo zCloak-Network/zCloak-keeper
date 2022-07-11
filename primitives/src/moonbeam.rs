@@ -29,6 +29,8 @@ pub const QUEUE_EXPIRE_DURATION: u8 = 30;
 pub const RESUBMIT_INTERVAL: u64 = 12;
 pub const MAX_RETRY_TIMES: u8 = 10;
 
+pub type Params = (Address, Bytes32, Bytes32, Bytes32, bool, Bytes32, Vec<u128>);
+
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub struct MoonbeamConfig {
 	pub url: String,
