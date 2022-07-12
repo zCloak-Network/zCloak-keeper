@@ -1,7 +1,6 @@
 pub use codec::{Decode, Encode};
 pub use futures_timer::Delay;
 pub use serde::{Deserialize, Serialize};
-use sp_core::storage::well_known_keys::is_child_storage_key;
 pub use sp_core::{
 	storage::{StorageData, StorageKey},
 	Bytes, H256 as Hash,

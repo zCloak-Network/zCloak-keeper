@@ -7,7 +7,7 @@ use tokio::{
 	time::Duration,
 };
 
-use super::{Address, Deserialize, Serialize, U64};
+use super::{Deserialize, Serialize, U64};
 
 const TIME_OUT: Duration = Duration::from_secs(5);
 

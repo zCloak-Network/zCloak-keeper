@@ -3,7 +3,6 @@ use crate::{TxHashAndInfo, U64};
 use std::{collections::linked_list::LinkedList, sync::Arc};
 
 use keeper_primitives::{
-	monitor::{MonitorMetrics, MonitorSender},
 	moonbeam::{
 		MOONBEAM_RESUBMIT_LOG_TARGET, MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET,
 		RESUBMIT_INTERVAL,
@@ -134,7 +133,7 @@ pub async fn task_scan(
 	}
 }
 
-const MAX_LOCAL_RECEIPT_QUEUE: usize = 200;
+const MAX_RETRY_QUEUE_LEN: usize = 200;
 
 pub async fn task_submit(
 	config: &ConfigInstance,
@@ -186,12 +185,12 @@ pub async fn task_submit(
 pub async fn task_resubmit(
 	config: &ConfigInstance,
 	msg_receiver: &mut MqReceiver,
-	monitor_sender: MonitorSender,
 	queue: RetryQueue,
 	local_last_sent_at: &mut U64,
 ) -> Result<(), (Option<U64>, Error)> {
 	while let Ok(r) = msg_receiver.recv_timeout(Delay::new(Duration::from_secs(1))).await {
-		let r = match r {
+		// todo: change the architect to remove duplicated code
+		match r {
 			Some(a) => {
 				let mut q = queue.lock().await;
 
@@ -263,15 +262,6 @@ pub async fn task_resubmit(
 							"submit_txs error: {:?}",
 							&e
 						);
-						if cfg!(feature = "monitor") {
-							let monitor_metrics = MonitorMetrics::new(
-								MOONBEAM_SUBMIT_LOG_TARGET.to_string(),
-								e.0,
-								&e.1.into(),
-								config.name.to_string(),
-							);
-							monitor_sender.send(monitor_metrics).await;
-						}
 					},
 				}
 			},
@@ -281,26 +271,17 @@ pub async fn task_resubmit(
 				// will throw error if:
 				// - updating nonce fails
 				// - updating gas price fails
-				let res = super::resubmit_txs(
+				super::resubmit_txs(
 					config,
 					&config.aggregator_contract,
 					config.private_key_optional,
 					queue.clone(),
 				)
-				.await;
-
-				if let Err(e) = res {
+				.await
+				.map_err(|e| {
 					log::error!(target: MOONBEAM_SUBMIT_LOG_TARGET, "submit_txs error: {:?}", &e);
-					if cfg!(feature = "monitor") {
-						let monitor_metrics = MonitorMetrics::new(
-							MOONBEAM_SUBMIT_LOG_TARGET.to_string(),
-							e.0,
-							&e.1.into(),
-							config.name.to_string(),
-						);
-						monitor_sender.send(monitor_metrics).await;
-					}
-				}
+					(e.0, e.1.into())
+				})?;
 			},
 		};
 	}

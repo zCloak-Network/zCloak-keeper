@@ -1,6 +1,5 @@
 #![feature(async_closure)]
 use secp256k1::SecretKey;
-use std::ops::Add;
 use web3::{
 	signing::{Key, SecretKeyRef},
 	types::{TransactionId, H256, U256},

@@ -1,6 +1,6 @@
 use super::{
-	Address, Contract, Deserialize, Http, IpfsClient, IpfsConfig, KiltClient, KiltConfig,
-	MoonbeamClient, MoonbeamConfig, Serialize,
+	Contract, Deserialize, Http, IpfsClient, IpfsConfig, KiltClient, KiltConfig, MoonbeamClient,
+	MoonbeamConfig, Serialize,
 };
 use crate::monitor::MonitorConfig;
 use secp256k1::SecretKey;

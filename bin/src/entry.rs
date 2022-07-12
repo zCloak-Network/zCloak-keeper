@@ -14,7 +14,7 @@ use keeper_primitives::{
 		Error as MoonbeamError, MOONBEAM_RESUBMIT_LOG_TARGET, MOONBEAM_SCAN_LOG_TARGET,
 		MOONBEAM_SUBMIT_LOG_TARGET,
 	},
-	Config, ConfigInstance, Error, IpfsClient, Key, KiltClient, MoonbeamClient, SecretKeyRef, U64,
+	Config, ConfigInstance, Error, IpfsClient, KiltClient, MoonbeamClient, U64,
 };
 use moonbeam::FatTx;
 
@@ -308,7 +308,6 @@ pub async fn run(
 			let res = moonbeam::task_resubmit(
 				&config,
 				&mut re_submit_receiver,
-				monitor_sender5.clone(),
 				queue.clone(),
 				&mut last_sent_at,
 			)
