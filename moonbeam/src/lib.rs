@@ -1,21 +1,21 @@
 #![feature(async_closure)]
 use secp256k1::SecretKey;
-use std::{collections::LinkedList, ops::Add, sync::Mutex, thread::sleep, time::Duration};
-use tokio::sync::MutexGuard;
-use web3::{signing::{Key, SecretKeyRef}, types::{TransactionId, H256, U256}, Web3};
-use web3::types::Res;
+use std::ops::Add;
+use web3::{
+	signing::{Key, SecretKeyRef},
+	types::{TransactionId, H256, U256},
+};
 
-use crate::task::{RetryQueue, RetryTx};
+use crate::task::RetryQueue;
 use keeper_primitives::{
 	moonbeam::{
-		self, Events, ProofEvent, IS_FINISHED, MOONBEAM_LISTENED_EVENT,
+		self, Events, Params, ProofEvent, IS_FINISHED, MAX_RETRY_TIMES, MOONBEAM_LISTENED_EVENT,
 		MOONBEAM_RESUBMIT_LOG_TARGET, MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SCAN_SPAN,
 		MOONBEAM_SUBMIT_LOG_TARGET, SUBMIT_STATUS_QUERY, SUBMIT_VERIFICATION,
 	},
-	Address, Bytes32, Config, ConfigInstance, Contract, Error, Http, MoonbeamClient,
-	Result as KeeperResult, VerifyResult, Web3Options, U64,
+	Address, ConfigInstance, Contract, Http, MoonbeamClient, Result as KeeperResult, VerifyResult,
+	Web3Options, U64,
 };
-use keeper_primitives::moonbeam::{MAX_RETRY_TIMES, Params};
 pub use task::{create_retry_queue, task_resubmit, task_scan, task_submit, FatTx};
 
 mod task;
@@ -200,10 +200,22 @@ pub async fn submit_txs(
 
 		// pick a nonce, construct raw tx and send it onchain
 		// todo: throw?
-		let nonce = latest_nonce(Some(last_sent_tx.clone()), config, keeper_address, MOONBEAM_SUBMIT_LOG_TARGET).await.ok();
+		let nonce = latest_nonce(
+			Some(last_sent_tx.clone()),
+			config,
+			keeper_address,
+			MOONBEAM_SUBMIT_LOG_TARGET,
+		)
+		.await
+		.ok();
 		let options = Web3Options::with(|options| options.nonce = nonce);
 		// MUST get a value, otherwise throw it out
-		let send_at = config.moonbeam_client.eth().block_number().await.map_err(|e| (None, e.into()))?;
+		let send_at = config
+			.moonbeam_client
+			.eth()
+			.block_number()
+			.await
+			.map_err(|e| (None, e.into()))?;
 		let tx_hash = construct_tx_and_send(contract, keeper_pri, options.clone(), params).await;
 		// Ok(hash) -> Some(hash)
 		// Err(_) => None and log error
@@ -243,7 +255,6 @@ pub async fn submit_txs(
 	Ok(result_for_next_task)
 }
 
-
 // core logic to handle the resubmit task
 // take item from the front of the list to check
 // and push the latest submitted tx from the back
@@ -260,7 +271,7 @@ pub async fn resubmit_txs(
 	// just return to commit the msg in the channel
 	let keeper_sec_key = match keeper_pri_optional {
 		Some(sec_key) => sec_key,
-		None => return Ok(())
+		None => return Ok(()),
 	};
 
 	let key_ref = SecretKeyRef::new(&keeper_sec_key);
@@ -272,11 +283,8 @@ pub async fn resubmit_txs(
 	while let Some(mut item) = queue_guard.pop_front() {
 		let is_included = match item.tx_info().0 {
 			Some(hash) => {
-				let maybe_tx_hash = config
-					.moonbeam_client
-					.eth()
-					.transaction(TransactionId::Hash(hash))
-					.await;
+				let maybe_tx_hash =
+					config.moonbeam_client.eth().transaction(TransactionId::Hash(hash)).await;
 
 				// if tx hash is included
 				if let Ok(Some(tx)) = maybe_tx_hash {
@@ -301,39 +309,41 @@ pub async fn resubmit_txs(
 			None => {
 				// no tx hash provided from last task
 				false
-			}
+			},
 		};
 
 		// if included, consume this item and continue to check next one
-		if is_included { continue }
+		if is_included {
+			continue
+		}
 
 		// if tx not included and retry times <= max, push back the item
 		// to the queue and break
 		if item.retry_times <= MAX_RETRY_TIMES {
 			queue_guard.push_front(item);
-			break;
+			break
 		}
-
 
 		// if the tx has been retried enough times(max_retry_times) still not included
 		// or tx hash is not passed from the last task, re-construct and submit
 		let (new_nonce, new_price) = {
 			let last_sent_tx = queue_guard.back().map(|f| f.fat_tx.clone());
 			// update nonce, will throw error
-			let nonce = latest_nonce(last_sent_tx, &config, keeper_address, MOONBEAM_RESUBMIT_LOG_TARGET).await.map_err(|e| (None, e.into()))?;
+			let nonce =
+				latest_nonce(last_sent_tx, &config, keeper_address, MOONBEAM_RESUBMIT_LOG_TARGET)
+					.await
+					.map_err(|e| (None, e.into()))?;
 
 			// update gas
 			// suggest gas price fetch, if error throw
 			// throw error if gas_price fetching fails
-			let suggested_gas_price = config.moonbeam_client.eth().gas_price().await.map_err(|e| (None, e.into()))?;
+			let suggested_gas_price =
+				config.moonbeam_client.eth().gas_price().await.map_err(|e| (None, e.into()))?;
 			let gas_price = {
 				// todo: make 1.1 configurable!!
 				let new_price = item.fat_tx.gas_price * 110 / 100;
-				let new_price = if new_price > suggested_gas_price {
-					new_price
-				} else {
-					suggested_gas_price
-				};
+				let new_price =
+					if new_price > suggested_gas_price { new_price } else { suggested_gas_price };
 				new_price
 			};
 
@@ -346,8 +356,14 @@ pub async fn resubmit_txs(
 		});
 
 		let params = item.tx_info().1.get_submit_params();
-		let send_at = config.moonbeam_client.eth().block_number().await.map_err(|e| (None, e.into()))?;
-		let tx_hash = construct_tx_and_send(contract, keeper_sec_key, resubmit_strategy, params).await;
+		let send_at = config
+			.moonbeam_client
+			.eth()
+			.block_number()
+			.await
+			.map_err(|e| (None, e.into()))?;
+		let tx_hash =
+			construct_tx_and_send(contract, keeper_sec_key, resubmit_strategy, params).await;
 		// update the queue
 		match tx_hash {
 			Ok(hash) => {
@@ -369,15 +385,14 @@ pub async fn resubmit_txs(
 			Err(_) => {
 				// fail to send, put it back from the front
 				queue_guard.push_front(item.clone());
-			}
+			},
 		}
 
 		item.update_after_resubmit(new_nonce, new_price, send_at, tx_hash.ok());
-	};
+	}
 
 	Ok(())
 }
-
 
 // pick a nonce to construct tx and send
 // succeed if it returns Ok(tx_hash)
@@ -417,23 +432,18 @@ pub async fn latest_nonce(
 ) -> Result<U256, moonbeam::Error> {
 	// best == last.send_at && nonce has value
 	let nonce = match last_sent_tx {
-		None => {
-			config.moonbeam_client.eth().transaction_count(keeper_address, None).await.map_err(|e| moonbeam::Error::Web3Error(e))?
-		},
+		None => config
+			.moonbeam_client
+			.eth()
+			.transaction_count(keeper_address, None)
+			.await
+			.map_err(|e| moonbeam::Error::Web3Error(e))?,
 		Some(fat_tx) => {
 			// pick last item in the queue, for the last item will hold the newest nonce.
-			let best = config
-				.moonbeam_client
-				.best_number()
-				.await
-				.map_err(|e| {
-					log::error!(
-						target: log_target,
-						"[nonce] fail to get best, err is {:?}",
-						e
-						);
-					e
-				})?;
+			let best = config.moonbeam_client.best_number().await.map_err(|e| {
+				log::error!(target: log_target, "[nonce] fail to get best, err is {:?}", e);
+				e
+			})?;
 
 			// todo: use functional prpgraming way to rewrite
 			if best == fat_tx.send_at && fat_tx.nonce.is_some() {
@@ -441,12 +451,15 @@ pub async fn latest_nonce(
 			} else {
 				// 1. best != last.send_at
 				// 2. last.nonce is none
-				config.moonbeam_client.eth().transaction_count(keeper_address, None).await.map_err(|e| moonbeam::Error::Web3Error(e))?
+				config
+					.moonbeam_client
+					.eth()
+					.transaction_count(keeper_address, None)
+					.await
+					.map_err(|e| moonbeam::Error::Web3Error(e))?
 			}
 		},
 	};
 
 	Ok(nonce)
 }
-
-

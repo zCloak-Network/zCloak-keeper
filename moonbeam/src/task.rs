@@ -2,22 +2,25 @@ use crate::{TxHashAndInfo, U64};
 
 use std::{collections::linked_list::LinkedList, sync::Arc};
 
-use keeper_primitives::{monitor::{MonitorMetrics, MonitorSender}, moonbeam::{
-	MAX_RETRY_TIMES, MOONBEAM_RESUBMIT_LOG_TARGET, MOONBEAM_SCAN_LOG_TARGET,
-	MOONBEAM_SUBMIT_LOG_TARGET, QUEUE_EXPIRE_DURATION, RESUBMIT_INTERVAL,
-}, ConfigInstance, Delay, Error, JsonParse, MqReceiver, MqSender, VerifyResult, CHANNEL_LOG_TARGET, Web3Options};
+use keeper_primitives::{
+	monitor::{MonitorMetrics, MonitorSender},
+	moonbeam::{
+		MOONBEAM_RESUBMIT_LOG_TARGET, MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET,
+		RESUBMIT_INTERVAL,
+	},
+	ConfigInstance, Delay, Deserialize, Error, JsonParse, MqReceiver, MqSender, Serialize,
+	CHANNEL_LOG_TARGET,
+};
 use tokio::{
 	sync::Mutex,
 	time::{sleep, Duration},
 };
-use web3::types::{TransactionId, H256, U256};
-use keeper_primitives::{Serialize, Deserialize};
+use web3::types::{H256, U256};
 
 use super::KeeperResult;
 
 // fat tx contains the necessary info for constructing new tx
-#[derive(Default, Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct FatTx {
 	pub send_at: U64,
 	pub gas_price: U256,
@@ -34,25 +37,28 @@ impl FatTx {
 #[derive(Default, Debug, Clone)]
 pub struct RetryTx {
 	pub fat_tx: FatTx,
-	pub retry_times: u8
+	pub retry_times: u8,
 }
 
 impl RetryTx {
-
 	pub(crate) fn tx_info(&self) -> TxHashAndInfo {
 		self.fat_tx.tx.clone()
 	}
 
 	// clear retry_times, update nonce, price, send_at and tx_hash
-	pub(crate) fn update_after_resubmit(&mut self, nonce: U256, gas_price: U256, send_at: U64, tx_hash: Option<H256>) {
+	pub(crate) fn update_after_resubmit(
+		&mut self,
+		nonce: U256,
+		gas_price: U256,
+		send_at: U64,
+		tx_hash: Option<H256>,
+	) {
 		self.retry_times = 0;
 		self.fat_tx.tx.0 = tx_hash;
 		self.fat_tx.nonce = Some(nonce);
 		self.fat_tx.gas_price = gas_price;
 		self.fat_tx.send_at = send_at;
 	}
-
-
 }
 
 pub type RetryQueue = Arc<Mutex<LinkedList<RetryTx>>>;
@@ -186,83 +192,117 @@ pub async fn task_resubmit(
 ) -> Result<(), (Option<U64>, Error)> {
 	while let Ok(r) = msg_receiver.recv_timeout(Delay::new(Duration::from_secs(1))).await {
 		let r = match r {
-			Some(a) => a,
-			None => continue,
-		};
+			Some(a) => {
+				let mut q = queue.lock().await;
 
-		let mut q = queue.lock().await;
+				// wait RESUBMIT_INTERVAL secs to avoid resubmit a tx that has been already finished
+				sleep(Duration::from_secs(RESUBMIT_INTERVAL)).await;
 
-		// wait RESUBMIT_INTERVAL secs to avoid resubmit a tx that has been already finished
-		sleep(Duration::from_secs(RESUBMIT_INTERVAL)).await;
+				// push the latest sent transactions to the back of the queue
+				if a.len() > 0 {
+					log::info!("recv msg in task5");
+					// in theory, inputs wont be empty here
+					let inputs: Vec<FatTx> =
+						serde_json::from_slice(&*a).map_err(|e| (None, e.into()))?;
 
-		// push the latest sent transactions to the back of the queue
-		if r.len() > 0 {
-			log::info!("recv msg in task5");
-			// in theory, inputs wont be empty here
-			let inputs: Vec<FatTx> = serde_json::from_slice(&*r).map_err(|e| (None, e.into()))?;
+					// must be true because r is not empty and deserializing succeeds
+					if let Some(last) = inputs.last() {
+						let last_sent_at_from_outer = last.send_at;
+						// if last_sent_from_outer <= local_last_sent, then skip updating the queue
+						// because `resubmit_txs` will throw error and re-consume the data from the
+						// channel
+						if &last_sent_at_from_outer > local_last_sent_at {
+							for tx_info in inputs {
+								// discard the option and sent_at received from the last task
+								// because task resubmit use a new private key
+								q.push_back(RetryTx {
+									fat_tx: FatTx::new_with_tx_info(tx_info.tx),
+									..Default::default()
+								});
+								*local_last_sent_at = tx_info.send_at;
+							}
+						}
 
-			// must be true because r is not empty and deserializing succeeds
-			if let Some(last) = inputs.last() {
-				let last_sent_at_from_outer = last.send_at;
-				// if last_sent_from_outer <= local_last_sent, then skip updating the queue
-				// because `resubmit_txs` will throw error and re-consume the data from the channel
-				if &last_sent_at_from_outer > local_last_sent_at {
-					for tx_info in inputs {
-						// discard the option and sent_at received from the last task
-						// because task resubmit use a new private key
-						q.push_back( RetryTx { fat_tx: FatTx::new_with_tx_info(tx_info.tx), ..Default::default()});
-						*local_last_sent_at = tx_info.send_at;
+						log::debug!(
+							target: MOONBEAM_RESUBMIT_LOG_TARGET,
+							"[queue_info] queue detail:{:}",
+							{
+								use std::fmt::Write;
+								let mut s = String::new();
+								for i in q.iter() {
+									write!(&mut s, "|{:?}", i).expect("fmt must be valid.");
+								}
+								s
+							}
+						);
+
+						drop(q);
+					};
+				}
+
+				// enter resubmit process.
+				// will consume the queue from the front
+				// will throw error if:
+				// - updating nonce fails
+				// - updating gas price fails
+				let res = super::resubmit_txs(
+					config,
+					&config.aggregator_contract,
+					config.private_key_optional,
+					queue.clone(),
+				)
+				.await;
+
+				match res {
+					Ok(_) => {
+						a.commit().map_err(|e| (None, e.into()))?;
+					},
+					Err(e) => {
+						log::error!(
+							target: MOONBEAM_SUBMIT_LOG_TARGET,
+							"submit_txs error: {:?}",
+							&e
+						);
+						if cfg!(feature = "monitor") {
+							let monitor_metrics = MonitorMetrics::new(
+								MOONBEAM_SUBMIT_LOG_TARGET.to_string(),
+								e.0,
+								&e.1.into(),
+								config.name.to_string(),
+							);
+							monitor_sender.send(monitor_metrics).await;
+						}
+					},
+				}
+			},
+			None => {
+				// enter resubmit process.
+				// will consume the queue from the front
+				// will throw error if:
+				// - updating nonce fails
+				// - updating gas price fails
+				let res = super::resubmit_txs(
+					config,
+					&config.aggregator_contract,
+					config.private_key_optional,
+					queue.clone(),
+				)
+				.await;
+
+				if let Err(e) = res {
+					log::error!(target: MOONBEAM_SUBMIT_LOG_TARGET, "submit_txs error: {:?}", &e);
+					if cfg!(feature = "monitor") {
+						let monitor_metrics = MonitorMetrics::new(
+							MOONBEAM_SUBMIT_LOG_TARGET.to_string(),
+							e.0,
+							&e.1.into(),
+							config.name.to_string(),
+						);
+						monitor_sender.send(monitor_metrics).await;
 					}
 				}
-			}
-
-			log::debug!(
-			target: MOONBEAM_RESUBMIT_LOG_TARGET,
-			"[queue_info] queue detail:{:}",
-			{
-				use std::fmt::Write;
-				let mut s = String::new();
-				for i in q.iter() {
-					write!(&mut s, "|{:?}", i).expect("fmt must be valid.");
-				}
-				s
-			}
-		);
-
-			drop(q);
+			},
 		};
-
-		// enter resubmit process.
-		// will consume the queue from the front
-		// will throw error if:
-		// - updating nonce fails
-		// - updating gas price fails
-		let res = super::resubmit_txs(
-			config,
-			&config.aggregator_contract,
-			config.private_key_optional,
-			queue.clone()
-
-		).await;
-
-		match res {
-			Ok(_) => {
-				// todo: FIX IT.
-				r.commit().map_err(|e| (None, e.into()))?;
-			},
-			Err(e) => {
-				log::error!(target: MOONBEAM_SUBMIT_LOG_TARGET, "submit_txs error: {:?}", &e);
-				if cfg!(feature = "monitor") {
-					let monitor_metrics = MonitorMetrics::new(
-						MOONBEAM_SUBMIT_LOG_TARGET.to_string(),
-						e.0,
-						&e.1.into(),
-						config.name.to_string(),
-					);
-					monitor_sender.send(monitor_metrics).await;
-				}
-			},
-		}
 	}
 
 	Ok(())

@@ -310,7 +310,7 @@ pub async fn run(
 				&mut re_submit_receiver,
 				monitor_sender5.clone(),
 				queue.clone(),
-				&mut last_sent_at
+				&mut last_sent_at,
 			)
 			.await;
 			if let Err(e) = res {
