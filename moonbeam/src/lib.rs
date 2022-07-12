@@ -1,4 +1,6 @@
 #![feature(async_closure)]
+
+use rand::{Rng, SeedableRng};
 use secp256k1::SecretKey;
 use web3::{
 	signing::{Key, SecretKeyRef},
@@ -12,8 +14,8 @@ use keeper_primitives::{
 		MOONBEAM_RESUBMIT_LOG_TARGET, MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SCAN_SPAN,
 		MOONBEAM_SUBMIT_LOG_TARGET, SUBMIT_STATUS_QUERY, SUBMIT_VERIFICATION,
 	},
-	Address, ConfigInstance, Contract, Http, MoonbeamClient, Result as KeeperResult, VerifyResult,
-	Web3Options, U64,
+	Address, ConfigInstance, Contract, Hash, Http, MoonbeamClient, Result as KeeperResult,
+	VerifyResult, Web3Options, U64,
 };
 pub use task::{create_retry_queue, task_resubmit, task_scan, task_submit, FatTx};
 
@@ -25,7 +27,7 @@ pub async fn scan_events(
 	best: U64,
 	client: &MoonbeamClient,
 	proof_contract: &Contract<Http>,
-) -> KeeperResult<(Option<Events>, U64)> {
+) -> KeeperResult<(Option<(Hash, Events)>, U64)> {
 	// if start > best, reset `start` pointer to best
 	if start > best {
 		log::warn!(
@@ -38,6 +40,9 @@ pub async fn scan_events(
 	}
 	let span: U64 = MOONBEAM_SCAN_SPAN.into();
 	let end = if start + span > best { best } else { start + span };
+
+	// the identifier for a batch of data
+	let batch_id: Hash = rand::rngs::StdRng::seed_from_u64(start.as_u64()).gen();
 
 	log::info!(
 		target: MOONBEAM_SCAN_LOG_TARGET,
@@ -71,46 +76,50 @@ pub async fn scan_events(
 
 	let hit = res.len();
 
-	if hit != 0 {
-		let mut result = vec![];
-		for (mut proof_event, log) in res {
-			let number = log.block_number;
-			// warn
-			if number.is_none() {
-				log::warn!(
-					target: MOONBEAM_SCAN_LOG_TARGET,
-					"Moonbeam log block number should not be None"
-				);
-			}
+	if hit == 0 {
+		return Ok((None, end))
+	}
 
-			log::info!(
-				"scan from [{:}] - [{:}] | hit:[{:}] | in blocks: {:?}",
-				start,
-				end,
-				hit,
-				number
-			);
+	// the data that will be passed to the next task
+	// (id, batch data)
+	let mut result = (Hash::default(), vec![]);
+	result.0 = batch_id;
 
-			// complete proof event
-			proof_event.set_block_number(number);
-
-			result.push(proof_event.clone());
-			log::info!(
+	for (mut proof_event, log) in res {
+		let number = log.block_number;
+		// warn
+		if number.is_none() {
+			log::warn!(
 				target: MOONBEAM_SCAN_LOG_TARGET,
-				"event in block {:?} contains data owner: {:} | request hash: {:} | root hash: {:} | program hash is {:} | calc output {:?} have been recorded",
-				number,
-				hex::encode(proof_event.data_owner()),
-				hex::encode(proof_event.request_hash()),
-				hex::encode(proof_event.root_hash()),
-				hex::encode(proof_event.program_hash()),
-				proof_event.raw_outputs()
+				"Moonbeam log block number should not be None"
 			);
 		}
 
-		Ok((Some(result), end))
-	} else {
-		Ok((None, end))
+		log::info!(
+			"scan from [{:}] - [{:}] | hit:[{:}] | in blocks: {:?}",
+			start,
+			end,
+			hit,
+			number
+		);
+
+		// complete proof event
+		proof_event.set_block_number(number);
+
+		result.1.push(proof_event.clone());
+		log::info!(
+			target: MOONBEAM_SCAN_LOG_TARGET,
+			"event in block {:?} contains data owner: {:} | request hash: {:} | root hash: {:} | program hash is {:} | calc output {:?} have been recorded",
+			number,
+			hex::encode(proof_event.data_owner()),
+			hex::encode(proof_event.request_hash()),
+			hex::encode(proof_event.root_hash()),
+			hex::encode(proof_event.program_hash()),
+			proof_event.raw_outputs()
+		);
 	}
+
+	Ok((Some(result), end))
 }
 
 // (tx_hash, necessary info to construct tx params)

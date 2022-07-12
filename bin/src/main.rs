@@ -11,7 +11,7 @@ mod runner;
 mod tasks;
 
 #[tokio::main]
-async fn main() -> std::result::Result<(), Error> {
+async fn main() -> Result<(), Error> {
 	// use default log level if it was not set
 	env_logger::init_from_env(Env::default().default_filter_or("info"));
 	log::info!("running...");

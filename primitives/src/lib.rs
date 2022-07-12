@@ -19,14 +19,12 @@ pub use web3::{
 };
 pub use yaque::{Receiver as MqReceiver, Sender as MqSender};
 
+use crate::{kilt::Attestation, moonbeam::Params};
 pub use config::{ChannelFiles, Config, ConfigInstance};
 pub use error::Error;
 pub use ipfs::{IpfsClient, IpfsConfig};
 pub use kilt::{KiltClient, KiltConfig};
 pub use moonbeam::{MoonbeamClient, MoonbeamConfig};
-pub use traits::JsonParse;
-
-use crate::{kilt::Attestation, moonbeam::Params};
 
 pub mod config;
 pub mod error;
@@ -35,11 +33,8 @@ pub mod kilt;
 // #[cfg(feature = "monitor")]
 pub mod monitor;
 pub mod moonbeam;
-mod traits;
 pub mod verify;
 
-// todo: move
-pub const CHANNEL_LOG_TARGET: &str = "Channel";
 pub const MESSAGE_PARSE_LOG_TARGET: &str = "Message Parse";
 
 pub type Bytes32 = [u8; 32];
@@ -147,17 +142,6 @@ impl ProofEvent {
 }
 
 pub type Events = Vec<ProofEvent>;
-
-// todo: no need? just use serde_json::parse
-impl traits::JsonParse for Events {
-	fn into_bytes(self) -> std::result::Result<Vec<u8>, error::Error> {
-		serde_json::to_vec(&self).map_err(|e| e.into())
-	}
-
-	fn try_from_bytes(json: &[u8]) -> std::result::Result<Self, error::Error> {
-		serde_json::from_slice(json).map_err(|e| e.into())
-	}
-}
 
 #[derive(PartialEq, Eq, Debug, Default, Clone, Serialize, Deserialize)]
 pub struct VerifyResult {

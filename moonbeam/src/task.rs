@@ -1,5 +1,6 @@
 use crate::{TxHashAndInfo, U64};
 
+use codec::Encode;
 use std::{collections::linked_list::LinkedList, sync::Arc};
 
 use keeper_primitives::{
@@ -7,8 +8,7 @@ use keeper_primitives::{
 		MOONBEAM_RESUBMIT_LOG_TARGET, MOONBEAM_SCAN_LOG_TARGET, MOONBEAM_SUBMIT_LOG_TARGET,
 		RESUBMIT_INTERVAL,
 	},
-	ConfigInstance, Delay, Deserialize, Error, JsonParse, MqReceiver, MqSender, Serialize,
-	CHANNEL_LOG_TARGET,
+	ConfigInstance, Delay, Deserialize, Error, Hash, MqReceiver, MqSender, Serialize, VerifyResult,
 };
 use tokio::{
 	sync::Mutex,
@@ -104,12 +104,14 @@ pub async fn task_scan(
 		if res.is_some() {
 			// send result to channel
 			// unwrap MUST succeed
-			let output = res.unwrap().into_bytes().map_err(|e| (Some(start), e.into()))?;
+			let output =
+				serde_json::to_string(&res.unwrap()).expect("output fail to parse in task scan");
+			let msg_to_send = output.as_bytes();
 
-			let status = msg_sender.send(output).await;
+			let status = msg_sender.send(msg_to_send).await;
 			if let Err(e) = status {
 				log::error!(
-					target: CHANNEL_LOG_TARGET,
+					target: MOONBEAM_SCAN_LOG_TARGET,
 					"Fail to write data in block from: #{:?} into event channel file",
 					start,
 				);
@@ -139,24 +141,36 @@ pub async fn task_submit(
 	config: &ConfigInstance,
 	msg_queue: (&mut MqSender, &mut MqReceiver),
 	last_sent_tx: &mut FatTx,
-) -> std::result::Result<(), (Option<U64>, Error)> {
+) -> Result<(), (Option<U64>, Error)> {
 	while let Ok(r) = msg_queue.1.recv_timeout(Delay::new(Duration::from_secs(2))).await {
 		// while let Ok(events) = event_receiver.recv().await {
-		let r = match r {
+		let msg = match r {
 			Some(a) => a,
 			None => continue,
 		};
 
-		log::info!("recv msg in task4");
-		// in theory, inputs wont be empty here
-		let inputs = serde_json::from_slice(&*r).map_err(|e| (None, e.into()))?;
+		let input_str = std::str::from_utf8(&*msg).expect("wrong format of msg into submit task");
+		let inputs: (Hash, Vec<VerifyResult>) = serde_json::from_str(input_str)
+			.map_err(|e| {
+				// log error
+				log::error!(
+					target: MOONBEAM_SUBMIT_LOG_TARGET,
+					"messages in task submit wrongly parsed, {:?}",
+					e
+				);
+			})
+			.expect("fail to parse msg in task submit");
+
+		// the identifier for a batch of data
+		let batch_id = inputs.0;
+		log::info!("recv msg[{:}] in task4", hex::encode(batch_id));
 
 		// enter submit process.
 		let res = super::submit_txs(
 			config,
 			&config.aggregator_contract,
 			config.private_key,
-			inputs,
+			inputs.1,
 			// nonce,
 			last_sent_tx,
 		)
@@ -164,13 +178,14 @@ pub async fn task_submit(
 
 		// res must be Ok
 		if res.is_ok() {
-			let res = res.unwrap();
-			let status =
-				msg_queue.0.send(serde_json::to_vec(&res).map_err(|e| (None, e.into()))?).await;
+			let output = serde_json::to_string(&(batch_id, res.unwrap()))
+				.expect("output fail to parse in task submit");
+			let msg_to_send = output.as_bytes();
+			let status = msg_queue.0.send(msg_to_send).await;
 
 			match status {
 				Ok(_) => {
-					r.commit().map_err(|e| (None, e.into()))?;
+					msg.commit().map_err(|e| (None, e.into()))?;
 				},
 				Err(e) => {
 					log::error!(target: MOONBEAM_SUBMIT_LOG_TARGET, "submit_txs error: {:?}", &e);
@@ -199,19 +214,31 @@ pub async fn task_resubmit(
 
 				// push the latest sent transactions to the back of the queue
 				if a.len() > 0 {
-					log::info!("recv msg in task5");
-					// in theory, inputs wont be empty here
-					let inputs: Vec<FatTx> =
-						serde_json::from_slice(&*a).map_err(|e| (None, e.into()))?;
+					let input_str =
+						std::str::from_utf8(&*a).expect("wrong format of msg into submit task");
+					let inputs: (Hash, Vec<FatTx>) = serde_json::from_str(input_str)
+						.map_err(|e| {
+							// log error
+							log::error!(
+								target: MOONBEAM_RESUBMIT_LOG_TARGET,
+								"messages in task resubmit wrongly parsed, {:?}",
+								e
+							);
+						})
+						.expect("fail to parse msg in task submit");
 
+					let batch_id = inputs.0;
+					log::info!("recv msg[{:}] in task5", hex::encode(batch_id));
+
+					// in theory, inputs wont be empty here
 					// must be true because r is not empty and deserializing succeeds
-					if let Some(last) = inputs.last() {
+					if let Some(last) = inputs.1.last() {
 						let last_sent_at_from_outer = last.send_at;
 						// if last_sent_from_outer <= local_last_sent, then skip updating the queue
 						// because `resubmit_txs` will throw error and re-consume the data from the
 						// channel
 						if &last_sent_at_from_outer > local_last_sent_at {
-							for tx_info in inputs {
+							for tx_info in inputs.1 {
 								// discard the option and sent_at received from the last task
 								// because task resubmit use a new private key
 								q.push_back(RetryTx {

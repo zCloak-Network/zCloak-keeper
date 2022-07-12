@@ -23,8 +23,6 @@ secp256k1 = { version = "0.21", features = ["recovery"] }
 env_logger = "0.9.0"
 hex = "0.4"
 futures = "0.3.21"
-
-
 #msq
 yaque = "0.6.3"
 
